@@ -62,12 +62,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String header = request.getHeader("Authorization");
         if (header == null || !header.startsWith(BEARER_PREFIX)) {
-            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "请先登录或携带 Authorization: Bearer <token>"));
+            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "请先登录"));
             return;
         }
         String token = header.substring(BEARER_PREFIX.length()).trim();
         if (token.isEmpty()) {
-            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "令牌为空"));
+            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "请先登录"));
             return;
         }
 
@@ -75,21 +75,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             claims = jwtService.parseClaims(token);
         } catch (ExpiredJwtException e) {
-            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "令牌已过期，请重新登录"));
+            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "登录已过期，请重新登录"));
             return;
         } catch (JwtException e) {
-            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "令牌无效"));
+            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "登录已失效，请重新登录"));
             return;
         }
 
         String role = claims.get(JwtService.CLAIM_ROLE, String.class);
         if (role == null || role.isBlank()) {
-            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "令牌缺少角色信息"));
+            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "登录已失效，请重新登录"));
             return;
         }
 
         if (!roleAllowedForPath(role, path)) {
-            writeJson(response, HttpServletResponse.SC_FORBIDDEN, Result.error(403, "当前身份无权访问该接口"));
+            writeJson(response, HttpServletResponse.SC_FORBIDDEN, Result.error(403, "没有权限执行此操作"));
             return;
         }
 
@@ -98,7 +98,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             long principalId = Long.parseLong(sub);
             request.setAttribute(ATTR_PRINCIPAL_ID, principalId);
         } catch (NumberFormatException ignored) {
-            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "令牌主体无效"));
+            writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, Result.error(401, "登录已失效，请重新登录"));
             return;
         }
         request.setAttribute(ATTR_ROLE, role);

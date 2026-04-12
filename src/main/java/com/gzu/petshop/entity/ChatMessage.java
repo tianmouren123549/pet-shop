@@ -34,6 +34,9 @@ public class ChatMessage {
     @TableField("is_read_by_user")
     private Integer isReadByUser;
 
+    @TableField("is_read_by_merchant")
+    private Integer isReadByMerchant;
+
     @TableField("read_at")
     private LocalDateTime readAt;
 

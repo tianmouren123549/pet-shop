@@ -5,8 +5,8 @@ import com.gzu.petshop.dto.merchant.MerchantProductContentJsonRequest;
 import com.gzu.petshop.dto.merchant.MerchantProductCreateRequest;
 import com.gzu.petshop.dto.merchant.MerchantProductDTO;
 import com.gzu.petshop.dto.merchant.MerchantProductUpdateRequest;
-import com.gzu.petshop.service.MerchantProductService;
-import com.gzu.petshop.service.UploadStorageService;
+import com.gzu.petshop.service.product.MerchantProductService;
+import com.gzu.petshop.service.storage.UploadStorageService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -82,9 +82,9 @@ public class MerchantProductController {
             try {
                 effectiveImageUrl = uploadStorageService.storeProductImage(imageFile);
             } catch (IllegalArgumentException e) {
-                return Result.error(e.getMessage());
+                return Result.error("请上传 jpg/png/gif/webp 等常见图片，且大小不超过限制");
             } catch (Exception e) {
-                return Result.error("图片上传失败");
+                return Result.error("图片上传失败，请稍后重试");
             }
         }
         String err = merchantProductService.updateProductContent(productId, description, specJson, effectiveImageUrl);

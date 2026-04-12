@@ -7,6 +7,8 @@ public class AdminOrderSummaryDTO {
     private Long orderId;
     private String orderNo;
     private Long userId;
+    /** 用户昵称（展示用；无则前端可回退「用户」+ userId） */
+    private String userNickname;
     /** 实付金额，两位小数字符串 */
     private String payAmount;
     private String status;
@@ -37,6 +39,14 @@ public class AdminOrderSummaryDTO {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public String getUserNickname() {
+        return userNickname;
+    }
+
+    public void setUserNickname(String userNickname) {
+        this.userNickname = userNickname;
     }
 
     public String getPayAmount() {

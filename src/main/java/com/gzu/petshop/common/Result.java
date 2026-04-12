@@ -41,6 +41,20 @@ public class Result<T> {
         return success(null);
     }
 
+    /**
+     * 成功响应（无 data），自定义面向用户的提示文案，避免默认的 {@code success} 英文。
+     *
+     * @param message 提示正文，空则回退为「操作成功」
+     */
+    public static Result<Void> successWithMessage(String message) {
+        Result<Void> result = new Result<>();
+        result.setCode(200);
+        String m = message == null ? "" : message.trim();
+        result.setMessage(m.isEmpty() ? "操作成功" : m);
+        result.setData(null);
+        return result;
+    }
+
     public static <T> Result<T> error(String message) {
         Result<T> result = new Result<>();
         result.setCode(500);

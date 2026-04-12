@@ -3,7 +3,7 @@ package com.gzu.petshop.controller.user;
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.user.UserProfileDTO;
 import com.gzu.petshop.dto.user.UserProfileUpdateRequest;
-import com.gzu.petshop.service.UserProfileService;
+import com.gzu.petshop.service.account.UserProfileService;
 import org.springframework.web.bind.annotation.*;
 
 /**

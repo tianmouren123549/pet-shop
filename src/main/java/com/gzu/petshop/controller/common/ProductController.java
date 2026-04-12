@@ -2,7 +2,7 @@ package com.gzu.petshop.controller.common;
 
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.common.ProductDTO;
-import com.gzu.petshop.service.ProductService;
+import com.gzu.petshop.service.product.ProductService;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 

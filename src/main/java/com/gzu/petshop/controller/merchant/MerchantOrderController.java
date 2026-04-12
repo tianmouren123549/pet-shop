@@ -3,7 +3,8 @@ package com.gzu.petshop.controller.merchant;
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.merchant.MerchantOrderStatusUpdateRequest;
 import com.gzu.petshop.dto.merchant.MerchantOrderSummaryDTO;
-import com.gzu.petshop.service.MerchantOrderService;
+import com.gzu.petshop.dto.merchant.MerchantOrderTodoBadgesDTO;
+import com.gzu.petshop.service.order.MerchantOrderService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,6 +30,14 @@ public class MerchantOrderController {
             return Result.error("商家ID无效");
         }
         return Result.success(merchantOrderService.listOrders(merchantId, status));
+    }
+
+    @GetMapping("/todo-badges")
+    public Result<MerchantOrderTodoBadgesDTO> todoBadges(@RequestParam Long merchantId) {
+        if (merchantId == null || merchantId <= 0) {
+            return Result.error("商家ID无效");
+        }
+        return Result.success(merchantOrderService.todoBadges(merchantId));
     }
 
     @PutMapping("/{orderId}/status")

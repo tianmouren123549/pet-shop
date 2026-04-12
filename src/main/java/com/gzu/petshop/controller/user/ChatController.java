@@ -4,8 +4,10 @@ import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.common.ChatMessageViewDTO;
 import com.gzu.petshop.dto.common.ChatSendUserRequest;
 import com.gzu.petshop.dto.common.ChatSessionResponseDTO;
+import com.gzu.petshop.dto.common.ChatUnreadBadgeDTO;
+import com.gzu.petshop.dto.common.ChatUnreadMerchantsDTO;
 import com.gzu.petshop.dto.common.MerchantSessionRequest;
-import com.gzu.petshop.service.ChatService;
+import com.gzu.petshop.service.support.ChatService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,8 +41,27 @@ public class ChatController {
     }
 
     @GetMapping("/session/{sessionId}/messages")
-    public Result<List<ChatMessageViewDTO>> messages(@PathVariable Long sessionId) {
-        return Result.success(chatService.listMessages(sessionId));
+    public Result<List<ChatMessageViewDTO>> messages(@PathVariable Long sessionId, @RequestParam Long userId) {
+        if (userId == null || userId <= 0) {
+            return Result.error("请先登录");
+        }
+        return Result.success(chatService.listMessagesForUser(sessionId, userId));
+    }
+
+    @GetMapping("/unread-badge")
+    public Result<ChatUnreadBadgeDTO> unreadBadge(@RequestParam Long userId) {
+        if (userId == null || userId <= 0) {
+            return Result.error("请先登录");
+        }
+        return Result.success(new ChatUnreadBadgeDTO(chatService.userHasUnreadMerchantReplies(userId)));
+    }
+
+    @GetMapping("/unread-merchants")
+    public Result<ChatUnreadMerchantsDTO> unreadMerchants(@RequestParam Long userId) {
+        if (userId == null || userId <= 0) {
+            return Result.error("请先登录");
+        }
+        return Result.success(chatService.unreadMerchantIdsForUser(userId));
     }
 
     @PostMapping("/messages")

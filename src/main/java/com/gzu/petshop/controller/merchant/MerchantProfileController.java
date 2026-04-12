@@ -2,7 +2,7 @@ package com.gzu.petshop.controller.merchant;
 
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.merchant.MerchantProfileUpdateRequest;
-import com.gzu.petshop.service.MerchantProfileService;
+import com.gzu.petshop.service.account.MerchantProfileService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,8 +23,8 @@ public class MerchantProfileController {
 
     @PutMapping("/{merchantId}")
     public Result<Void> updateProfile(@PathVariable Long merchantId, @RequestBody MerchantProfileUpdateRequest req) {
-        boolean ok = merchantProfileService.updateProfile(merchantId, req);
-        return ok ? Result.success() : Result.error("商家不存在");
+        String err = merchantProfileService.updateProfile(merchantId, req);
+        return err == null ? Result.success() : Result.error(err);
     }
 }
 

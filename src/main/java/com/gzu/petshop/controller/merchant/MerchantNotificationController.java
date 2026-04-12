@@ -3,7 +3,7 @@ package com.gzu.petshop.controller.merchant;
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.merchant.MerchantIdRequest;
 import com.gzu.petshop.dto.common.NotificationViewDTO;
-import com.gzu.petshop.service.NotificationService;
+import com.gzu.petshop.service.support.NotificationService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;

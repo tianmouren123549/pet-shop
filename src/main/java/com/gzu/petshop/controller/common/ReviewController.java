@@ -3,7 +3,7 @@ package com.gzu.petshop.controller.common;
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.common.ReviewViewDTO;
 import com.gzu.petshop.entity.Review;
-import com.gzu.petshop.service.ReviewService;
+import com.gzu.petshop.service.product.ReviewService;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +38,7 @@ public class ReviewController {
                 return Result.error("评价内容不能为空");
             }
             Review r = reviewService.addReview(userId, productId, rating, content);
-            return r == null ? Result.error("您已评价过该商品") : Result.success(r);
+            return Result.success(r);
         } catch (NumberFormatException e) {
             return Result.error("参数格式错误");
         }

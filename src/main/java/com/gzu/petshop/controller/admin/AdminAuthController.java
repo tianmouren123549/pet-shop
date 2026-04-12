@@ -2,7 +2,7 @@ package com.gzu.petshop.controller.admin;
 
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.admin.AdminLoginRequest;
-import com.gzu.petshop.service.AdminAuthService;
+import com.gzu.petshop.service.auth.AdminAuthService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController

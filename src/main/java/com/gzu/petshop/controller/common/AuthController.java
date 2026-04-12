@@ -3,7 +3,7 @@ package com.gzu.petshop.controller.common;
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.common.LoginRequest;
 import com.gzu.petshop.dto.common.RegisterRequest;
-import com.gzu.petshop.service.AuthService;
+import com.gzu.petshop.service.auth.AuthService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController

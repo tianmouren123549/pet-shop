@@ -6,6 +6,10 @@ public class MerchantProfileUpdateRequest {
     private String phone;
     private String email;
     private String avatarUrl;
+    /**
+     * 每周销售额目标（元）。非 null 时解析：空串表示清空目标；否则须为非负数字字符串。
+     */
+    private String salesTargetWeekly;
 
     public String getShopName() {
         return shopName;
@@ -45,6 +49,14 @@ public class MerchantProfileUpdateRequest {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public String getSalesTargetWeekly() {
+        return salesTargetWeekly;
+    }
+
+    public void setSalesTargetWeekly(String salesTargetWeekly) {
+        this.salesTargetWeekly = salesTargetWeekly;
     }
 }
 

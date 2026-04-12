@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -30,6 +31,10 @@ public class Merchant {
 
     @TableField("avatar_url")
     private String avatarUrl;
+
+    /** 每周销售额目标（元），NULL 表示未设置 */
+    @TableField("sales_target_weekly")
+    private BigDecimal salesTargetWeekly;
 
     private Integer status;
 

@@ -3,11 +3,12 @@ package com.gzu.petshop.controller.user;
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.user.CreateOrderResponse;
 import com.gzu.petshop.dto.user.OrderDetailQueryResult;
+import com.gzu.petshop.dto.user.UserCreateFromCartRequest;
 import com.gzu.petshop.dto.user.UserCreateOrderDirectRequest;
 import com.gzu.petshop.dto.user.UserIdRequest;
 import com.gzu.petshop.dto.user.UserOrderDetailDTO;
 import com.gzu.petshop.dto.user.UserOrderSummaryDTO;
-import com.gzu.petshop.service.UserOrderService;
+import com.gzu.petshop.service.order.UserOrderService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -44,9 +45,12 @@ public class UserOrderController {
     }
 
     @PostMapping("/create-from-cart")
-    public Result<Map<String, Long>> createFromCart(@RequestBody UserIdRequest body) {
+    public Result<Map<String, Long>> createFromCart(@RequestBody UserCreateFromCartRequest body) {
         Long userId = body != null ? body.getUserId() : null;
-        CreateOrderResponse r = userOrderService.createFromCart(userId);
+        Long merchantId = body != null ? body.getMerchantId() : null;
+        CreateOrderResponse r = (merchantId != null && merchantId > 0)
+                ? userOrderService.createFromCartForMerchant(userId, merchantId)
+                : userOrderService.createFromCart(userId);
         if (!r.isOk()) {
             return Result.error(r.getError());
         }

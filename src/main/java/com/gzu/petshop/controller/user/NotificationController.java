@@ -2,9 +2,10 @@ package com.gzu.petshop.controller.user;
 
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.common.NotificationViewDTO;
+import com.gzu.petshop.dto.common.RestockSubscribeOutcome;
 import com.gzu.petshop.dto.common.RestockSubscribeRequest;
 import com.gzu.petshop.dto.user.UserIdRequest;
-import com.gzu.petshop.service.NotificationService;
+import com.gzu.petshop.service.support.NotificationService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,7 +40,10 @@ public class NotificationController {
 
     @PostMapping("/restock-subscribe")
     public Result<Void> restockSubscribe(@RequestBody RestockSubscribeRequest body) {
-        String err = notificationService.subscribeRestock(body);
-        return err == null ? Result.success() : Result.error(err);
+        RestockSubscribeOutcome out = notificationService.subscribeRestock(body);
+        if (out.errorMessage() != null) {
+            return Result.error(out.errorMessage());
+        }
+        return Result.successWithMessage(out.successMessage());
     }
 }

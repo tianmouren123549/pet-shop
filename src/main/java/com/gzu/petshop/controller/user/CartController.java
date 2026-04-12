@@ -2,7 +2,7 @@ package com.gzu.petshop.controller.user;
 
 import com.gzu.petshop.common.Result;
 import com.gzu.petshop.dto.user.CartDTO;
-import com.gzu.petshop.service.CartService;
+import com.gzu.petshop.service.order.CartService;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
