@@ -1,7 +1,29 @@
 import { mockProducts, mockReviews, mockCategories, mockCart } from '../mock/data.js'
+import { NETWORK_ERROR, toFriendlyApiMessage } from './apiFriendlyMessage.js'
 
-const USE_MOCK = true
-const BASE_URL = 'http://localhost:8080'
+/**
+ * 是否走内置离线数据（USE_MOCK=true）。联调后端请保持 false；BASE_URL 为空时 Vite 将 `/api`、`/uploads` 代理到 8080。
+ * @type {boolean}
+ */
+const USE_MOCK = false
+/** @type {string} API 根路径；生产可设为完整后端地址。 */
+const BASE_URL = import.meta.env.VITE_API_BASE ?? ''
+
+/** JWT：登录成功后由后端写入 {@code localStorage.accessToken} */
+const ACCESS_TOKEN_KEY = 'accessToken'
+
+/**
+ * 构建带 Bearer 的请求头（联调后端 JWT 时使用）。
+ * @returns {Record<string, string>}
+ */
+function authHeaders() {
+  try {
+    const t = localStorage.getItem(ACCESS_TOKEN_KEY)
+    return t ? { Authorization: `Bearer ${t}` } : {}
+  } catch {
+    return {}
+  }
+}
 
 const NOTICE_KEY_V1 = 'petshop_mock_notifications_v1'
 const NOTICE_KEY_V2 = 'petshop_mock_notices_v2'
@@ -79,14 +101,14 @@ const state = {
     {
       userId: 1,
       nickname: '测试用户',
-      phone: 'user123',
+      phone: '',
       password: '123456',
-      email: null,
+      email: 'test@example.com',
       avatarUrl: '',
       status: 1,
     },
   ],
-  admins: [{ adminId: 1, username: 'admin123', password: '123456', status: 1, role: 'ADMIN' }],
+  admins: [{ adminId: 1, username: 'admin123', password: '123456', status: 1, role: 'SUPER' }],
   merchants: [
     {
       merchantId: 1,
@@ -98,6 +120,7 @@ const state = {
       phone: '18800001111',
       email: '',
       avatarUrl: '',
+      salesTargetWeekly: 5000,
       status: 1,
     },
   ],
@@ -138,21 +161,10 @@ const state = {
   ],
   chatSessions: [
     {
-      sessionId: 1,
-      userId: 1,
-      agentAdminId: null,
-      orderId: null,
-      sessionType: 'USER_TO_ADMIN',
-      merchantId: null,
-      status: 'OPEN',
-      createdAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
-      updatedAt: new Date(Date.now() - 1000 * 60 * 2).toISOString(),
-    },
-    {
       sessionId: 2,
       userId: 1,
       agentAdminId: null,
-      orderId: null,
+      orderId: 1,
       sessionType: 'USER_TO_MERCHANT',
       merchantId: 1,
       status: 'OPEN',
@@ -162,16 +174,6 @@ const state = {
   ],
   chatMessages: [
     {
-      messageId: 1,
-      sessionId: 1,
-      senderType: 'ADMIN',
-      senderId: 1,
-      content: '您好，这里是客服，请问有什么可以帮您？',
-      attachmentUrl: null,
-      readStatus: 1,
-      createdAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
-    },
-    {
       messageId: 2,
       sessionId: 2,
       senderType: 'USER',
@@ -179,6 +181,7 @@ const state = {
       content: '请问这个狗粮什么时候补货？',
       attachmentUrl: null,
       readStatus: 1,
+      readByMerchant: 1,
       createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
     },
     {
@@ -188,7 +191,8 @@ const state = {
       senderId: 1,
       content: '预计明天上午补货，您可以先收藏商品。',
       attachmentUrl: null,
-      readStatus: 1,
+      readStatus: 0,
+      readByMerchant: 1,
       createdAt: new Date(Date.now() - 1000 * 60 * 11).toISOString(),
     },
   ],
@@ -434,28 +438,74 @@ function fail(message = '请求失败', code = 400) {
   return Promise.resolve({ code, message, data: null })
 }
 
+/**
+ * 解析 fetch 响应：兼容非 JSON 体，并对失败 message 做统一脱敏。
+ * @param {Response} res
+ * @returns {Promise<{ code: number, message: string, data: unknown }>}
+ */
+async function parseApiResponse(res) {
+  const text = await res.text()
+  /** @type {Record<string, unknown> | null} */
+  let data = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = null
+    }
+  }
+  if (data?.code === 401) {
+    try {
+      localStorage.removeItem(ACCESS_TOKEN_KEY)
+    } catch {
+      /* ignore */
+    }
+  }
+  if (typeof data?.code === 'number') {
+    if (data.code !== 200) {
+      return {
+        ...data,
+        message: toFriendlyApiMessage(data.message, data.code),
+      }
+    }
+    return data
+  }
+  const code = res.ok ? 200 : res.status
+  const rawMsg = data && typeof data.message === 'string' ? data.message : ''
+  return {
+    code,
+    message: code === 200 ? (rawMsg || 'success') : toFriendlyApiMessage(rawMsg, code),
+    data: data?.data ?? null,
+  }
+}
+
 async function requestJson(url, options = {}) {
   try {
+    const { headers: optHeaders, ...rest } = options
     const res = await fetch(BASE_URL + url, {
-      headers: { 'Content-Type': 'application/json' },
-      ...options,
+      ...rest,
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(),
+        ...(optHeaders || {}),
+      },
     })
-    const data = await res.json()
-    if (typeof data?.code === 'number') return data
-    return { code: res.ok ? 200 : res.status, message: data?.message || '请求失败', data: data?.data ?? null }
+    return await parseApiResponse(res)
   } catch {
-    return { code: 500, message: '网络异常，请检查后端服务是否启动', data: null }
+    return { code: 500, message: NETWORK_ERROR, data: null }
   }
 }
 
 async function requestFormData(url, formData, options = {}) {
   try {
-    const res = await fetch(BASE_URL + url, { ...options, body: formData })
-    const data = await res.json().catch(() => null)
-    if (typeof data?.code === 'number') return data
-    return { code: res.ok ? 200 : res.status, message: data?.message || '请求失败', data: data?.data ?? null }
+    const res = await fetch(BASE_URL + url, {
+      ...options,
+      headers: { ...authHeaders(), ...(options.headers || {}) },
+      body: formData,
+    })
+    return await parseApiResponse(res)
   } catch {
-    return { code: 500, message: '网络异常，请检查后端服务是否启动', data: null }
+    return { code: 500, message: NETWORK_ERROR, data: null }
   }
 }
 
@@ -477,11 +527,47 @@ function nextId(list, key) {
   return Math.max(...list.map((x) => Number(x[key]) || 0)) + 1
 }
 
+function buildMockCategoryTree() {
+  const list = state.categories || []
+  const nodes = new Map()
+  for (const c of list) {
+    nodes.set(Number(c.categoryId), {
+      categoryId: c.categoryId,
+      parentId: c.parentId,
+      name: c.name,
+      path: c.path,
+      children: [],
+    })
+  }
+  const roots = []
+  for (const c of list) {
+    const id = Number(c.categoryId)
+    const n = nodes.get(id)
+    const p = Number(c.parentId) || 0
+    if (p === 0) {
+      roots.push(n)
+    } else {
+      const parent = nodes.get(p)
+      if (parent) parent.children.push(n)
+      else roots.push(n)
+    }
+  }
+  const sortRec = (arr) => {
+    arr.sort((a, b) => Number(a.categoryId) - Number(b.categoryId))
+    arr.forEach((x) => sortRec(x.children))
+  }
+  sortRec(roots)
+  return roots
+}
+
 function findCategoryChildrenIds(categoryId) {
   const hit = state.categories.find((c) => c.categoryId === Number(categoryId))
   if (!hit) return [Number(categoryId)]
   if (hit.parentId !== 0) return [hit.categoryId]
-  return state.categories.filter((c) => c.path.startsWith(`${hit.categoryId}/`)).map((c) => c.categoryId)
+  const children = state.categories
+    .filter((c) => c.path.startsWith(`${hit.categoryId}/`))
+    .map((c) => c.categoryId)
+  return [hit.categoryId, ...children]
 }
 
 function merchantBaseInfo(merchantId) {
@@ -517,6 +603,9 @@ function toCartViewItem(item) {
   const product = state.products.find((p) => p.productId === item.productId)
   if (!product) return null
   const price = Number(product.price)
+  const mid = Number(product.merchantId || 0)
+  const merchant = (state.merchants || []).find((m) => Number(m.merchantId) === mid)
+  const merchantShopName = merchant?.shopName || (mid ? `商家${mid}` : '')
   return {
     cartId: item.cartId,
     userId: item.userId,
@@ -526,14 +615,20 @@ function toCartViewItem(item) {
     price: price.toFixed(2),
     quantity: item.quantity,
     subtotal: (price * item.quantity).toFixed(2),
+    merchantId: mid || null,
+    merchantShopName,
   }
 }
 
 function toOrderSummary(o) {
+  const u = (state.users || []).find((x) => Number(x.userId) === Number(o.userId))
+  const nick =
+    u?.nickname && String(u.nickname).trim() ? u.nickname : o.userId != null ? `用户${o.userId}` : '—'
   return {
     orderId: o.orderId,
     orderNo: o.orderNo,
     userId: o.userId,
+    userNickname: nick,
     payAmount: Number(o.payAmount).toFixed(2),
     status: o.status,
     createdAt: o.createdAt,
@@ -609,7 +704,7 @@ async function applyOrderStockChange(order, direction) {
     if (!p) return fail('商品不存在', 404)
     if (delta < 0) {
       if (!canSellProduct(p)) return fail('商品已下架')
-      if (!hasEnoughStock(p, qty)) return fail(`商品「${String(p.title || '')}」库存不足`)
+      if (!hasEnoughStock(p, qty)) return fail('库存不足')
     }
     actions.push({ product: p, qty })
   }
@@ -654,6 +749,7 @@ const mockApi = {
   },
   getCategories: async () => ok(state.categories),
   getRootCategories: async () => ok(state.categories.filter((c) => c.parentId === 0)),
+  getCategoryTree: async () => ok(buildMockCategoryTree()),
 
   getCart: async (userId) => {
     const uid = Number(userId)
@@ -723,40 +819,99 @@ const mockApi = {
   },
 
   login: async (data) => {
-    const user = state.users.find((u) => u.phone === String(data?.phone || '').trim())
-    if (!user || user.password !== String(data?.password || '')) return fail('用户名或密码错误')
-    return ok({ userId: user.userId, nickname: user.nickname }, '登录成功')
+    const email = String(data?.email || '').trim().toLowerCase()
+    const user = state.users.find((u) => String(u.email || '').trim().toLowerCase() === email)
+    if (!user || user.password !== String(data?.password || '')) return fail('邮箱或密码错误')
+    return ok(
+      { userId: user.userId, nickname: user.nickname, token: `mock-jwt-USER-${user.userId}` },
+      '登录成功',
+    )
   },
   register: async (data) => {
-    const phone = String(data?.phone || '').trim()
     const nickname = String(data?.nickname || '').trim()
     const password = String(data?.password || '')
-    const email = String(data?.email || '').trim()
-    if (!phone) return fail('手机号不能为空')
+    const email = String(data?.email || '').trim().toLowerCase()
+    const phone = String(data?.phone || '').trim()
+    if (!email) return fail('邮箱不能为空')
     if (password.length < 6) return fail('密码至少 6 位')
-    if (state.users.some((u) => u.phone === phone)) return fail('该手机号已注册')
-    if (email && state.users.some((u) => u.email && u.email === email)) return fail('该邮箱已被注册')
+    if (state.users.some((u) => String(u.email || '').trim().toLowerCase() === email)) return fail('该邮箱已被注册')
     const user = {
       userId: nextId(state.users, 'userId'),
       nickname: nickname || '用户',
-      phone,
+      phone: phone || '',
       password,
-      email: email || null,
+      email,
       avatarUrl: '',
       status: 1,
     }
     state.users.push(user)
-    return ok({ userId: user.userId, nickname: user.nickname }, '注册成功')
+    return ok(
+      { userId: user.userId, nickname: user.nickname, token: `mock-jwt-USER-${user.userId}` },
+      '注册成功',
+    )
   },
   adminLogin: async (data) => {
     const admin = state.admins.find((a) => a.username === String(data?.username || '').trim())
     if (!admin || admin.password !== String(data?.password || '')) return fail('账号或密码错误')
-    return ok({ adminId: admin.adminId, username: admin.username, role: admin.role || 'ADMIN' }, '登录成功')
+    const role = admin.role || 'SUPER'
+    return ok(
+      {
+        adminId: admin.adminId,
+        username: admin.username,
+        role,
+        token: `mock-jwt-${role}-${admin.adminId}`,
+      },
+      '登录成功',
+    )
   },
   merchantLogin: async (data) => {
     const merchant = state.merchants.find((m) => m.username === String(data?.username || '').trim())
     if (!merchant || merchant.password !== String(data?.password || '')) return fail('账号或密码错误')
-    return ok({ adminId: merchant.merchantId, username: merchant.username, role: merchant.role || 'MERCHANT' }, '登录成功')
+    return ok(
+      {
+        adminId: merchant.merchantId,
+        username: merchant.username,
+        role: merchant.role || 'MERCHANT',
+        token: `mock-jwt-MERCHANT-${merchant.merchantId}`,
+      },
+      '登录成功',
+    )
+  },
+  merchantRegister: async (data) => {
+    const username = String(data?.username || '').trim()
+    const password = String(data?.password || '')
+    const shopName = String(data?.shopName || '').trim()
+    const contactName = String(data?.contactName || '').trim()
+    const phone = String(data?.phone || '').trim()
+    const email = String(data?.email || '').trim()
+    if (!username) return fail('商家账号不能为空')
+    if (password.length < 6) return fail('密码至少 6 位')
+    if (!shopName) return fail('店铺名称不能为空')
+    if (!contactName) return fail('联系人不能为空')
+    if (!phone) return fail('联系电话不能为空')
+    if (state.merchants.some((m) => m.username === username)) return fail('该商家账号已被注册')
+    const merchant = {
+      merchantId: nextId(state.merchants, 'merchantId'),
+      username,
+      password,
+      role: 'MERCHANT',
+      shopName,
+      contactName,
+      phone,
+      email: email || '',
+      avatarUrl: '',
+      status: 1,
+    }
+    state.merchants.push(merchant)
+    return ok(
+      {
+        adminId: merchant.merchantId,
+        username: merchant.username,
+        role: 'MERCHANT',
+        token: `mock-jwt-MERCHANT-${merchant.merchantId}`,
+      },
+      '注册成功',
+    )
   },
 
   adminGetProducts: async () => {
@@ -937,6 +1092,109 @@ const mockApi = {
     const data = status ? state.orders.filter((o) => o.status === status) : state.orders
     return ok(data.map(toOrderSummary))
   },
+  adminGetOrderDetail: async (orderId) => {
+    const order = state.orders.find((o) => o.orderId === Number(orderId))
+    if (!order) return fail('订单不存在', 404)
+    const u = (state.users || []).find((x) => Number(x.userId) === Number(order.userId))
+    const items = (order.items || []).map((it) => {
+      const p = state.products.find((sp) => Number(sp.productId) === Number(it.productId))
+      const mid = Number(it.merchantId || p?.merchantId || 0)
+      const m = (state.merchants || []).find((mer) => Number(mer.merchantId) === mid)
+      const qty = Number(it.quantity) || 0
+      const price = Number(it.price != null ? it.price : p?.price) || 0
+      const sub = Number(it.subtotal != null ? it.subtotal : price * qty)
+      return {
+        productId: it.productId,
+        merchantId: mid || null,
+        merchantShopName: m?.shopName || (mid ? `商家${mid}` : '—'),
+        title: it.title || p?.title || '',
+        imageUrl: String(it.imageUrl || p?.detail?.imageUrl || ''),
+        price,
+        quantity: qty,
+        subtotal: sub,
+      }
+    })
+    const mids = [...new Set(items.map((x) => Number(x.merchantId || 0)).filter((x) => x > 0))]
+    const merchants = mids.map((mid) => {
+      const m = (state.merchants || []).find((mer) => Number(mer.merchantId) === mid)
+      return {
+        merchantId: mid,
+        shopName: m?.shopName || `商家${mid}`,
+        contactName: m?.contactName || '',
+        phone: m?.phone || '',
+      }
+    })
+    const itemCount = items.reduce((s, x) => s + Number(x.quantity || 0), 0)
+    return ok({
+      orderId: order.orderId,
+      orderNo: order.orderNo,
+      userId: order.userId,
+      userNickname: u?.nickname?.trim() ? u.nickname : order.userId != null ? `用户${order.userId}` : '—',
+      userEmail: u?.email || '',
+      userPhone: u?.phone || '',
+      payAmount: Number(order.payAmount).toFixed(2),
+      status: order.status,
+      statusReason: order.statusReason || '',
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt || order.createdAt,
+      itemCount,
+      merchants,
+      items,
+    })
+  },
+  adminListUsers: async () => {
+    const list = (state.users || []).map((u) => ({
+      userId: u.userId,
+      nickname: u.nickname || '',
+      email: u.email || '',
+      phone: u.phone || '',
+      status: u.status != null ? u.status : 1,
+      createdAt: u.createdAt || new Date().toISOString(),
+    }))
+    return ok(list)
+  },
+  adminUpdateUserStatus: async (userId, data) => {
+    const u = state.users.find((x) => x.userId === Number(userId))
+    if (!u) return fail('用户不存在', 404)
+    u.status = Number(data?.status) === 0 ? 0 : 1
+    return ok(true)
+  },
+  adminResetUserPassword: async (userId, data) => {
+    const u = state.users.find((x) => x.userId === Number(userId))
+    if (!u) return fail('用户不存在', 404)
+    const pwd = String(data?.newPassword || '')
+    if (pwd.length < 6) return fail('新密码至少 6 位')
+    u.password = pwd
+    return ok(true)
+  },
+  adminListMerchants: async () => {
+    const list = (state.merchants || []).map((m) => ({
+      merchantId: m.merchantId,
+      username: m.username || '',
+      shopName: m.shopName || '',
+      contactName: m.contactName || '',
+      phone: m.phone || '',
+      email: m.email || '',
+      status: m.status != null ? m.status : 1,
+      createdAt: m.createdAt || new Date().toISOString(),
+      lastLoginAt: m.lastLoginAt || '',
+    }))
+    return ok(list)
+  },
+  adminUpdateMerchantStatus: async (merchantId, data) => {
+    const m = state.merchants.find((x) => x.merchantId === Number(merchantId))
+    if (!m) return fail('商家不存在', 404)
+    m.status = Number(data?.status) === 0 ? 0 : 1
+    return ok(true)
+  },
+  adminResetMerchantPassword: async (merchantId, data) => {
+    const m = state.merchants.find((x) => x.merchantId === Number(merchantId))
+    if (!m) return fail('商家不存在', 404)
+    const pwd = String(data?.newPassword || '')
+    if (pwd.length < 6) return fail('新密码至少 6 位')
+    m.password = pwd
+    return ok(true)
+  },
   adminUpdateOrderStatus: async (orderId, data) => {
     const order = state.orders.find((o) => o.orderId === Number(orderId))
     if (!order) return fail('订单不存在', 404)
@@ -992,6 +1250,15 @@ const mockApi = {
       .map(toOrderSummary)
     return ok(data)
   },
+  merchantOrderTodoBadges: async (merchantId) => {
+    const mid = Number(merchantId || 0)
+    if (!mid) return fail('商家ID无效', 400)
+    const mine = state.orders.filter(
+      (o) => Array.isArray(o.items) && o.items.some((it) => Number(it.merchantId || 0) === mid),
+    )
+    const pendingShipment = mine.some((o) => o.status === 'PAID')
+    return ok({ pendingShipment })
+  },
   merchantUpdateOrderStatus: async (merchantId, orderId, status) => {
     const mid = Number(merchantId || 0)
     if (!mid) return fail('商家ID无效', 400)
@@ -1033,15 +1300,22 @@ const mockApi = {
   },
   userCreateOrderFromCart: async (data) => {
     const userId = Number(data?.userId)
+    const merchantId =
+      data?.merchantId != null && data?.merchantId !== '' ? Number(data.merchantId) : null
     if (!userId) return fail('请先登录')
-    const cart = state.cart.filter((x) => x.userId === userId).map(toCartViewItem).filter(Boolean)
-    if (!cart.length) return fail('购物车为空')
+    let cart = state.cart.filter((x) => x.userId === userId).map(toCartViewItem).filter(Boolean)
+    if (merchantId != null && merchantId > 0) {
+      cart = cart.filter((c) => Number(c.merchantId || 0) === merchantId)
+    }
+    if (!cart.length) {
+      return fail(merchantId != null && merchantId > 0 ? '该商家在购物车中没有可结算商品' : '购物车为空')
+    }
     const prepared = []
     for (const c of cart) {
       const p = state.products.find((sp) => Number(sp.productId) === Number(c.productId))
-      if (!p) return fail(`商品「${String(c.title || '')}」不存在`, 404)
-      if (!canSellProduct(p)) return fail(`商品「${String(p.title || '')}」已下架`)
-      if (!hasEnoughStock(p, c.quantity)) return fail(`商品「${String(p.title || '')}」库存不足`)
+      if (!p) return fail('商品不存在', 404)
+      if (!canSellProduct(p)) return fail('商品已下架')
+      if (!hasEnoughStock(p, c.quantity)) return fail('库存不足')
       prepared.push({
         productId: c.productId,
         merchantId: Number(p?.merchantId || 1),
@@ -1052,7 +1326,9 @@ const mockApi = {
       })
     }
     const mids = new Set(prepared.map((it) => Number(it.merchantId || 0)).filter((x) => x > 0))
-    if (mids.size > 1) return fail('暂不支持跨店合并结算，请按商家分开下单')
+    if (mids.size > 1 && !(merchantId != null && merchantId > 0)) {
+      return fail('暂不支持跨店合并结算，请按商家分开下单')
+    }
     const { items, payAmount } = calcOrderItems(prepared)
     const now = new Date().toISOString()
     const order = {
@@ -1067,7 +1343,8 @@ const mockApi = {
       updatedAt: now,
     }
     state.orders.push(order)
-    state.cart = state.cart.filter((x) => x.userId !== userId)
+    const usedCartIds = new Set(cart.map((c) => c.cartId))
+    state.cart = state.cart.filter((x) => !(x.userId === userId && usedCartIds.has(x.cartId)))
     return ok({ orderId: order.orderId }, '下单成功')
   },
   userCreateOrderDirect: async (data) => {
@@ -1158,7 +1435,7 @@ const mockApi = {
     if (!product) return fail('商品不存在', 404)
     const subs = loadSubs()
     const exists = subs.some((s) => Number(s.userId) === uid && Number(s.productId) === pid && Number(s.active) === 1)
-    if (exists) return ok(true, '已关注过该商品')
+    if (exists) return ok(true, '您已订阅该商品的到货提醒，补货上架后我们将在消息中心通知您')
     const now = new Date().toISOString()
     subs.unshift({
       subId: nextId(subs, 'subId'),
@@ -1192,7 +1469,7 @@ const mockApi = {
         reason: '用户订阅',
       })
     }
-    return ok(true, '已开启到货提醒')
+    return ok(true, '到货提醒订阅成功。当前商品暂无库存，补货后我们将第一时间通过消息中心提醒您')
   },
   userGetNotifications: async (userId) => {
     const uid = Number(userId || 0)
@@ -1231,27 +1508,6 @@ const mockApi = {
     return ok(true, '已处理')
   },
 
-  userGetSupportSession: async (userId) => {
-    const uid = Number(userId)
-    if (!uid) return fail('请先登录')
-    let session = state.chatSessions.find((s) => s.userId === uid && s.status === 'OPEN' && s.sessionType === 'USER_TO_ADMIN')
-    if (!session) {
-      const now = new Date().toISOString()
-      session = {
-        sessionId: nextId(state.chatSessions, 'sessionId'),
-        userId: uid,
-        agentAdminId: null,
-        orderId: null,
-        sessionType: 'USER_TO_ADMIN',
-        merchantId: null,
-        status: 'OPEN',
-        createdAt: now,
-        updatedAt: now,
-      }
-      state.chatSessions.push(session)
-    }
-    return ok(session)
-  },
   userGetMerchantSession: async (data) => {
     const uid = Number(data?.userId)
     const merchantId = Number(data?.merchantId)
@@ -1288,8 +1544,56 @@ const mockApi = {
       merchantName: merchant?.shopName || merchant?.username || `商家${merchantId}`,
     })
   },
-  userGetSupportMessages: async (sessionId) => {
+  userChatUnreadBadge: async (userId) => {
+    const uid = Number(userId || 0)
+    if (!uid) return fail('请先登录')
+    const sessionIds = state.chatSessions
+      .filter((s) => Number(s.userId) === uid && s.sessionType === 'USER_TO_MERCHANT')
+      .map((s) => s.sessionId)
+    const hasUnread = state.chatMessages.some(
+      (m) => sessionIds.includes(m.sessionId) && m.senderType === 'MERCHANT' && Number(m.readStatus) !== 1,
+    )
+    return ok({ hasUnread })
+  },
+  userChatUnreadMerchants: async (userId) => {
+    const uid = Number(userId || 0)
+    if (!uid) return fail('请先登录')
+    const sessions = state.chatSessions.filter((s) => Number(s.userId) === uid && s.sessionType === 'USER_TO_MERCHANT')
+    const sessionIds = sessions.map((s) => s.sessionId)
+    const bySid = new Map(sessions.map((s) => [s.sessionId, Number(s.merchantId) || 0]))
+    const merchantSet = new Set()
+    for (const m of state.chatMessages) {
+      if (!sessionIds.includes(m.sessionId)) continue
+      if (m.senderType !== 'MERCHANT') continue
+      if (Number(m.readStatus) === 1) continue
+      const mid = bySid.get(m.sessionId)
+      if (mid > 0) merchantSet.add(mid)
+    }
+    return ok({ merchantIds: [...merchantSet] })
+  },
+  merchantChatUnreadBadge: async (merchantId) => {
+    const mid = Number(merchantId || 0)
+    if (!mid) return fail('请先登录商家账号')
+    const sessionIds = state.chatSessions
+      .filter((s) => Number(s.merchantId) === mid && s.sessionType === 'USER_TO_MERCHANT')
+      .map((s) => s.sessionId)
+    const hasUnread = state.chatMessages.some(
+      (m) =>
+        sessionIds.includes(m.sessionId) &&
+        m.senderType === 'USER' &&
+        Number(m.readByMerchant) !== 1,
+    )
+    return ok({ hasUnread })
+  },
+  userGetSupportMessages: async (sessionId, userId) => {
     const sid = Number(sessionId)
+    const uid = Number(userId || 0)
+    if (!uid) return fail('请先登录')
+    const session = state.chatSessions.find((s) => s.sessionId === sid)
+    if (!session || Number(session.userId) !== uid) return fail('会话不存在', 404)
+    state.chatMessages.forEach((m) => {
+      if (m.sessionId === sid && m.senderType === 'MERCHANT') m.readStatus = 1
+    })
     const list = state.chatMessages
       .filter((m) => m.sessionId === sid)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -1312,44 +1616,81 @@ const mockApi = {
       senderId: userId,
       content,
       attachmentUrl: null,
-      readStatus: 0,
+      readStatus: 1,
+      readByMerchant: 0,
       createdAt: now,
     }
     state.chatMessages.push(msg)
     session.updatedAt = now
-    if (session.sessionType === 'USER_TO_ADMIN') {
-      const autoReply = {
-        messageId: nextId(state.chatMessages, 'messageId'),
-        sessionId,
-        senderType: 'ADMIN',
-        senderId: 1,
-        content: '已收到您的消息，我们会尽快处理。',
-        attachmentUrl: null,
-        readStatus: 0,
-        createdAt: new Date(Date.now() + 300).toISOString(),
-      }
-      state.chatMessages.push(autoReply)
-      session.updatedAt = autoReply.createdAt
-    }
     return ok(msg, '发送成功')
   },
   merchantGetSupportSessions: async (merchantId) => {
     const mid = Number(merchantId)
     if (!mid) return fail('请先登录商家账号')
+    const unreadSidSet = new Set()
+    for (const m of state.chatMessages) {
+      if (m.senderType !== 'USER') continue
+      if (Number(m.readByMerchant) === 1) continue
+      const sess = state.chatSessions.find(
+        (x) =>
+          x.sessionId === m.sessionId &&
+          x.sessionType === 'USER_TO_MERCHANT' &&
+          Number(x.merchantId) === mid,
+      )
+      if (sess) unreadSidSet.add(m.sessionId)
+    }
     const sessions = state.chatSessions
       .filter((s) => s.sessionType === 'USER_TO_MERCHANT' && Number(s.merchantId) === mid)
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .map((s) => {
         const user = state.users.find((u) => u.userId === Number(s.userId))
+        let orderNo = ''
+        let productTitle = '咨询未关联订单'
+        let productImageUrl = ''
+        let relatedLineCount = 0
+        const oid = s.orderId != null && s.orderId !== '' ? Number(s.orderId) : 0
+        if (oid > 0) {
+          const order = state.orders.find(
+            (o) => Number(o.orderId) === oid && Number(o.userId) === Number(s.userId),
+          )
+          if (order) {
+            orderNo = String(order.orderNo || '')
+            const lines = (order.items || []).filter((it) => Number(it.merchantId || 0) === mid)
+            relatedLineCount = lines.length
+            if (lines.length > 0) {
+              const first = lines[0]
+              productTitle = String(first.title || '').trim() || '商品'
+              productImageUrl = String(first.imageUrl || '').trim()
+            } else {
+              productTitle = orderNo ? `订单 ${orderNo}` : '订单（无本店商品）'
+            }
+          } else {
+            productTitle = '订单信息不可用'
+          }
+        }
         return {
           ...s,
           userNickname: user?.nickname || `用户${s.userId}`,
+          orderNo,
+          productTitle,
+          productImageUrl,
+          relatedLineCount,
+          unreadFromUser: unreadSidSet.has(s.sessionId),
         }
       })
     return ok(sessions)
   },
-  merchantGetSupportMessages: async (sessionId) => {
+  merchantGetSupportMessages: async (sessionId, merchantId) => {
     const sid = Number(sessionId)
+    const mid = Number(merchantId || 0)
+    if (!mid) return fail('请先登录商家账号')
+    const session = state.chatSessions.find((s) => s.sessionId === sid)
+    if (!session || Number(session.merchantId) !== mid || session.sessionType !== 'USER_TO_MERCHANT') {
+      return fail('会话不存在', 404)
+    }
+    state.chatMessages.forEach((m) => {
+      if (m.sessionId === sid && m.senderType === 'USER') m.readByMerchant = 1
+    })
     const list = state.chatMessages
       .filter((m) => m.sessionId === sid)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -1373,6 +1714,7 @@ const mockApi = {
       content,
       attachmentUrl: null,
       readStatus: 0,
+      readByMerchant: 1,
       createdAt: now,
     }
     state.chatMessages.push(msg)
@@ -1396,18 +1738,25 @@ const mockApi = {
     if (!user) return fail('用户不存在', 404)
     const nickname = String(data?.nickname || '').trim()
     const phone = String(data?.phone || '').trim()
-    const email = String(data?.email || '').trim()
+    const email = String(data?.email || '').trim().toLowerCase()
     if (!nickname) return fail('昵称不能为空')
-    if (!phone) return fail('手机号不能为空')
+    if (!email) return fail('邮箱不能为空')
+    if (state.users.some((u) => u.userId !== user.userId && String(u.email || '').trim().toLowerCase() === email)) {
+      return fail('该邮箱已被使用')
+    }
     user.nickname = nickname
     user.phone = phone
-    user.email = email || null
+    user.email = email
     if (typeof data?.avatarUrl !== 'undefined') user.avatarUrl = String(data.avatarUrl || '')
     return ok(true, '保存成功')
   },
   merchantGetProfile: async (merchantId) => {
     const merchant = state.merchants.find((m) => m.merchantId === Number(merchantId))
     if (!merchant) return fail('商家不存在', 404)
+    const tw =
+      merchant.salesTargetWeekly != null && merchant.salesTargetWeekly !== ''
+        ? String(Number(merchant.salesTargetWeekly).toFixed(2))
+        : ''
     return ok({
       merchantId: merchant.merchantId,
       username: merchant.username || '',
@@ -1416,6 +1765,7 @@ const mockApi = {
       phone: merchant.phone || '',
       email: merchant.email || '',
       avatarUrl: merchant.avatarUrl || '',
+      salesTargetWeekly: tw,
     })
   },
   merchantUpdateProfile: async (merchantId, data) => {
@@ -1432,6 +1782,16 @@ const mockApi = {
     merchant.phone = phone
     merchant.email = String(data?.email || '').trim()
     if (typeof data?.avatarUrl !== 'undefined') merchant.avatarUrl = String(data.avatarUrl || '')
+    if (typeof data?.salesTargetWeekly !== 'undefined') {
+      const raw = String(data.salesTargetWeekly ?? '').trim()
+      if (!raw) {
+        merchant.salesTargetWeekly = null
+      } else {
+        const n = Number(raw)
+        if (!Number.isFinite(n) || n < 0) return fail('销售额目标须为非负数字', 400)
+        merchant.salesTargetWeekly = n
+      }
+    }
     return ok(true, '保存成功')
   },
 }
@@ -1443,6 +1803,7 @@ export const api = {
     USE_MOCK ? mockApi.getProductsByCategory(categoryId) : getJson(`/api/products/category/${categoryId}`),
   getCategories: async () => (USE_MOCK ? mockApi.getCategories() : getJson('/api/categories')),
   getRootCategories: async () => (USE_MOCK ? mockApi.getRootCategories() : getJson('/api/categories/root')),
+  getCategoryTree: async () => (USE_MOCK ? mockApi.getCategoryTree() : getJson('/api/categories/tree')),
   getCart: async (userId) => (USE_MOCK ? mockApi.getCart(userId) : getJson(`/api/cart/${userId}`)),
   addToCart: async (data) => (USE_MOCK ? mockApi.addToCart(data) : postJson('/api/cart/add', data)),
   updateCart: async (data) => (USE_MOCK ? mockApi.updateCart(data) : putJson('/api/cart/update', data)),
@@ -1453,6 +1814,8 @@ export const api = {
   register: async (data) => (USE_MOCK ? mockApi.register(data) : postJson('/api/auth/register', data)),
   adminLogin: async (data) => (USE_MOCK ? mockApi.adminLogin(data) : postJson('/api/admin/auth/login', data)),
   merchantLogin: async (data) => (USE_MOCK ? mockApi.merchantLogin(data) : postJson('/api/merchant/auth/login', data)),
+  merchantRegister: async (data) =>
+    USE_MOCK ? mockApi.merchantRegister(data) : postJson('/api/merchant/auth/register', data),
   adminGetProducts: async () => (USE_MOCK ? mockApi.adminGetProducts() : getJson('/api/admin/products')),
   adminUpdateProduct: async (productId, data) =>
     USE_MOCK ? mockApi.adminUpdateProduct(productId, data) : putJson(`/api/admin/products/${productId}`, data),
@@ -1468,13 +1831,24 @@ export const api = {
     USE_MOCK
       ? mockApi.merchantUpdateProduct(merchantId, productId, data)
       : putJson(`/api/merchant/products/${productId}`, { ...(data || {}), merchantId }),
-  merchantCreateProduct: async (data) => (USE_MOCK ? mockApi.merchantCreateProduct(data) : fail('当前后端尚未实现商品创建接口')),
+  merchantCreateProduct: async (data) =>
+    USE_MOCK ? mockApi.merchantCreateProduct(data) : postJson('/api/merchant/products', data),
   merchantUpdateProductContent: async (productId, data) => {
     if (USE_MOCK) return mockApi.merchantUpdateProductContent(productId, data)
     const formData = new FormData()
     formData.append('description', String(data?.description ?? ''))
     formData.append('specJson', JSON.stringify(data?.specJson ?? {}))
-    if (data?.imageFile) formData.append('imageFile', data.imageFile)
+    const urlStr = typeof data?.imageUrl !== 'undefined' ? String(data.imageUrl ?? '') : ''
+    const hasFile = Boolean(data?.imageFile)
+    // 有本地文件时不要再附带 data: 预览 URL，否则与 imageFile 重复、体积翻倍易 413
+    if (hasFile) {
+      formData.append('imageFile', data.imageFile)
+      if (urlStr && !urlStr.startsWith('data:')) {
+        formData.append('imageUrl', urlStr)
+      }
+    } else if (typeof data?.imageUrl !== 'undefined') {
+      formData.append('imageUrl', urlStr)
+    }
     return requestFormData(`/api/merchant/products/${productId}/content`, formData, { method: 'PUT' })
   },
   adminGetOrders: async (status = '') => {
@@ -1482,6 +1856,22 @@ export const api = {
     const q = status ? `?status=${encodeURIComponent(status)}` : ''
     return getJson(`/api/admin/orders${q}`)
   },
+  adminGetOrderDetail: async (orderId) =>
+    USE_MOCK ? mockApi.adminGetOrderDetail(orderId) : getJson(`/api/admin/orders/${orderId}`),
+  adminListUsers: async () => (USE_MOCK ? mockApi.adminListUsers() : getJson('/api/admin/users')),
+  adminUpdateUserStatus: async (userId, data) =>
+    USE_MOCK ? mockApi.adminUpdateUserStatus(userId, data) : putJson(`/api/admin/users/${userId}/status`, data),
+  adminResetUserPassword: async (userId, data) =>
+    USE_MOCK ? mockApi.adminResetUserPassword(userId, data) : putJson(`/api/admin/users/${userId}/password`, data),
+  adminListMerchants: async () => (USE_MOCK ? mockApi.adminListMerchants() : getJson('/api/admin/merchants')),
+  adminUpdateMerchantStatus: async (merchantId, data) =>
+    USE_MOCK
+      ? mockApi.adminUpdateMerchantStatus(merchantId, data)
+      : putJson(`/api/admin/merchants/${merchantId}/status`, data),
+  adminResetMerchantPassword: async (merchantId, data) =>
+    USE_MOCK
+      ? mockApi.adminResetMerchantPassword(merchantId, data)
+      : putJson(`/api/admin/merchants/${merchantId}/password`, data),
   adminUpdateOrderStatus: async (orderId, data) =>
     USE_MOCK ? mockApi.adminUpdateOrderStatus(orderId, data) : putJson(`/api/admin/orders/${orderId}/status`, data),
   merchantGetOrders: async (merchantId, status = '') => {
@@ -1489,6 +1879,10 @@ export const api = {
     const q = status ? `&status=${encodeURIComponent(status)}` : ''
     return getJson(`/api/merchant/orders?merchantId=${encodeURIComponent(merchantId)}${q}`)
   },
+  merchantOrderTodoBadges: async (merchantId) =>
+    USE_MOCK
+      ? mockApi.merchantOrderTodoBadges(merchantId)
+      : getJson(`/api/merchant/orders/todo-badges?merchantId=${encodeURIComponent(merchantId)}`),
   merchantUpdateOrderStatus: async (merchantId, orderId, status) =>
     USE_MOCK
       ? mockApi.merchantUpdateOrderStatus(merchantId, orderId, status)
@@ -1520,17 +1914,33 @@ export const api = {
     USE_MOCK
       ? mockApi.merchantMarkNotificationRead(merchantId, noticeId)
       : putJson(`/api/merchant/notifications/${noticeId}/read`, { merchantId }),
-  userGetSupportSession: async (userId) =>
-    USE_MOCK ? mockApi.userGetSupportSession(userId) : getJson(`/api/chat/session/user/${userId}`),
   userGetMerchantSession: async (data) =>
     USE_MOCK ? mockApi.userGetMerchantSession(data) : postJson('/api/chat/session/merchant', data),
-  userGetSupportMessages: async (sessionId) =>
-    USE_MOCK ? mockApi.userGetSupportMessages(sessionId) : getJson(`/api/chat/session/${sessionId}/messages`),
+  userChatUnreadBadge: async (userId) =>
+    USE_MOCK
+      ? mockApi.userChatUnreadBadge(userId)
+      : getJson(`/api/chat/unread-badge?userId=${encodeURIComponent(userId)}`),
+  userChatUnreadMerchants: async (userId) =>
+    USE_MOCK
+      ? mockApi.userChatUnreadMerchants(userId)
+      : getJson(`/api/chat/unread-merchants?userId=${encodeURIComponent(userId)}`),
+  merchantChatUnreadBadge: async (merchantId) =>
+    USE_MOCK
+      ? mockApi.merchantChatUnreadBadge(merchantId)
+      : getJson(`/api/merchant/chat/unread-badge?merchantId=${encodeURIComponent(merchantId)}`),
+  userGetSupportMessages: async (sessionId, userId) =>
+    USE_MOCK
+      ? mockApi.userGetSupportMessages(sessionId, userId)
+      : getJson(`/api/chat/session/${sessionId}/messages?userId=${encodeURIComponent(userId)}`),
   userSendSupportMessage: async (data) => (USE_MOCK ? mockApi.userSendSupportMessage(data) : postJson('/api/chat/messages', data)),
   merchantGetSupportSessions: async (merchantId) =>
     USE_MOCK ? mockApi.merchantGetSupportSessions(merchantId) : getJson(`/api/merchant/chat/sessions/${merchantId}`),
-  merchantGetSupportMessages: async (sessionId) =>
-    USE_MOCK ? mockApi.merchantGetSupportMessages(sessionId) : getJson(`/api/merchant/chat/session/${sessionId}/messages`),
+  merchantGetSupportMessages: async (sessionId, merchantId) =>
+    USE_MOCK
+      ? mockApi.merchantGetSupportMessages(sessionId, merchantId)
+      : getJson(
+          `/api/merchant/chat/session/${sessionId}/messages?merchantId=${encodeURIComponent(merchantId)}`,
+        ),
   merchantSendSupportMessage: async (data) =>
     USE_MOCK ? mockApi.merchantSendSupportMessage(data) : postJson('/api/merchant/chat/messages', data),
   userGetProfile: async (userId) => (USE_MOCK ? mockApi.userGetProfile(userId) : getJson(`/api/users/${userId}/profile`)),

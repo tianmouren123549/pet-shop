@@ -1,12 +1,24 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { api } from '../utils/request'
+import { productMatchesKeyword } from '../utils/productSearch'
+import {
+  formatCategoryWithParent,
+  productMatchesCategorySelection
+} from '../utils/categoryDisplay'
+import { getFlatCategoryNavCategories } from '../utils/categoryNav'
+import { showAppMessage } from '../utils/appMessage'
+import { restockSubscribeSuccessBody } from '../utils/apiFriendlyMessage'
 import PaginationBar from '../components/PaginationBar.vue'
 
 const router = useRouter()
+const route = useRoute()
 const products = ref([])
-const categories = ref([])
+const allCategories = ref([])
+const flatNavCategories = computed(() =>
+  getFlatCategoryNavCategories(allCategories.value)
+)
 const selectedCategory = ref(null)
 const keyword = ref('')
 const appliedKeyword = ref('')
@@ -21,9 +33,39 @@ function setPageSize(n) {
   page.value = 1
 }
 
+function queryQ() {
+  const q = route.query.q
+  if (Array.isArray(q)) return String(q[0] ?? '').trim()
+  return String(q ?? '').trim()
+}
+
+function syncKeywordFromRoute() {
+  const q = queryQ()
+  keyword.value = q
+  appliedKeyword.value = q
+}
+
 onMounted(async () => {
   await loadCategories()
+  syncKeywordFromRoute()
   await loadProducts()
+})
+
+watch(
+  () => route.query.q,
+  async () => {
+    syncKeywordFromRoute()
+    page.value = 1
+    await loadProducts()
+  }
+)
+
+const selectedCategoryName = computed(() => {
+  if (!selectedCategory.value) return ''
+  const hit = allCategories.value.find(
+    (c) => Number(c.categoryId) === Number(selectedCategory.value)
+  )
+  return hit ? hit.name : ''
 })
 
 function viewDetail(productId) {
@@ -31,9 +73,9 @@ function viewDetail(productId) {
 }
 
 async function loadCategories() {
-  const res = await api.getRootCategories()
+  const res = await api.getCategories()
   if (res.code === 200) {
-    categories.value = res.data
+    allCategories.value = res.data
   } else {
     errorMsg.value = res.message || '分类加载失败'
   }
@@ -42,17 +84,24 @@ async function loadCategories() {
 async function loadProducts() {
   loading.value = true
   errorMsg.value = ''
-  const res = selectedCategory.value
-    ? await api.getProductsByCategory(selectedCategory.value)
-    : await api.getProducts()
+  const kw = appliedKeyword.value.trim()
+  const hasKw = !!kw
+  const res = hasKw
+    ? await api.getProducts()
+    : selectedCategory.value
+      ? await api.getProductsByCategory(selectedCategory.value)
+      : await api.getProducts()
   if (res.code === 200) {
-    const list = Array.isArray(res.data) ? res.data : []
-    const kw = appliedKeyword.value.trim().toLowerCase()
-    products.value = !kw
-      ? list
-      : list.filter((p) => {
-        return String(p.title || '').toLowerCase().includes(kw) || String(p.productId).includes(kw)
-      })
+    let list = Array.isArray(res.data) ? res.data : []
+    if (hasKw) {
+      list = list.filter((p) => productMatchesKeyword(p, kw))
+      if (selectedCategory.value != null) {
+        list = list.filter((p) =>
+          productMatchesCategorySelection(p, selectedCategory.value, allCategories.value)
+        )
+      }
+    }
+    products.value = list
   } else {
     errorMsg.value = res.message || '商品加载失败'
     products.value = []
@@ -68,14 +117,27 @@ function filterByCategory(categoryId) {
 
 function runSearch() {
   appliedKeyword.value = keyword.value
-  loadProducts()
+  const q = appliedKeyword.value.trim()
+  const prevQ = queryQ()
+  router.replace({ path: '/products', query: q ? { q } : {} })
+  if (q === prevQ) {
+    loadProducts()
+  }
 }
 
 function resetSearch() {
   keyword.value = ''
   appliedKeyword.value = ''
   selectedCategory.value = null
-  loadProducts()
+  const hadQ = !!queryQ()
+  router.replace({ path: '/products' })
+  if (!hadQ) {
+    loadProducts()
+  }
+}
+
+function categoryDisplayName(product) {
+  return formatCategoryWithParent(product, allCategories.value)
 }
 
 async function subscribeRestock(product, e) {
@@ -84,7 +146,7 @@ async function subscribeRestock(product, e) {
   if (!pid) return
   const uid = Number(localStorage.getItem('userId') || 0)
   if (!uid) {
-    alert('请先登录')
+    showAppMessage('请先登录', '提示')
     router.push('/login')
     return
   }
@@ -93,15 +155,11 @@ async function subscribeRestock(product, e) {
   const res = await api.userSubscribeRestock({ userId: uid, productId: pid })
   subscribing.value = { ...subscribing.value, [pid]: false }
   if (res.code === 200) {
-    alert(res.message || '已关注补货提醒')
+    showAppMessage(restockSubscribeSuccessBody(res.message), '订阅成功')
   } else {
-    alert(res.message || '操作失败')
+    showAppMessage(res.message || '操作失败', '提示')
   }
 }
-
-watch(selectedCategory, () => {
-  page.value = 1
-})
 
 const total = computed(() => (Array.isArray(products.value) ? products.value.length : 0))
 const pagedProducts = computed(() => {
@@ -121,31 +179,44 @@ const pagedProducts = computed(() => {
     </section>
 
     <section class="pw-section category-bar">
-      <input
-        v-model="keyword"
-        class="pw-input search-input"
-        placeholder="搜索商品名称或ID"
-        @keyup.enter="runSearch"
-      />
-      <button type="button" class="pw-btn pw-btn-sm" @click="runSearch">搜索</button>
-      <button type="button" class="pw-btn-ghost pw-btn-sm" @click="resetSearch">重置</button>
-      <button
-        type="button"
-        :class="['category-btn', { active: !selectedCategory }]"
-        @click="filterByCategory(null)"
-      >
-        全部商品
-      </button>
-      <button
-        v-for="cat in categories"
-        :key="cat.categoryId"
-        type="button"
-        :class="['category-btn', { active: selectedCategory === cat.categoryId }]"
-        @click="filterByCategory(cat.categoryId)"
-      >
-        {{ cat.name }}
-      </button>
+      <div class="category-bar-search">
+        <input
+          v-model="keyword"
+          class="pw-input search-input"
+          placeholder="搜索商品名称或ID"
+          @keyup.enter="runSearch"
+        />
+        <button type="button" class="pw-btn pw-btn-sm" @click="runSearch">搜索</button>
+        <button type="button" class="pw-btn-ghost pw-btn-sm" @click="resetSearch">重置</button>
+      </div>
+      <div class="category-bar-filters">
+        <button
+          type="button"
+          :class="['category-btn', { active: !selectedCategory }]"
+          @click="filterByCategory(null)"
+        >
+          全部商品
+        </button>
+        <div v-if="flatNavCategories.length" class="product-category-tier">
+          <div class="product-category-tier-btns">
+            <button
+              v-for="cat in flatNavCategories"
+              :key="`nav-${cat.categoryId}`"
+              type="button"
+              :class="['category-btn', { active: selectedCategory === cat.categoryId }]"
+              @click="filterByCategory(cat.categoryId)"
+            >
+              {{ cat.name }}
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
+
+    <div v-if="appliedKeyword || selectedCategoryName" class="product-active-filters">
+      <span v-if="appliedKeyword" class="filter-chip">关键词：{{ appliedKeyword }}</span>
+      <span v-if="selectedCategoryName" class="filter-chip">分类：{{ selectedCategoryName }}</span>
+    </div>
 
     <div v-if="loading" class="pw-state">加载中...</div>
     <div v-else-if="errorMsg" class="pw-state pw-state--error">{{ errorMsg }}</div>
@@ -172,7 +243,7 @@ const pagedProducts = computed(() => {
         </div>
         <div class="product-info">
           <h3>{{ product.title }}</h3>
-          <p class="category">{{ product.categoryName }}</p>
+          <p class="category">{{ categoryDisplayName(product) }}</p>
           <div class="footer">
             <span class="price">¥{{ product.price }}</span>
             <div class="footer-actions">
@@ -218,10 +289,53 @@ const pagedProducts = computed(() => {
 
 .category-bar {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.category-bar-search {
+  display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
   align-items: center;
+}
+
+.category-bar-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.product-category-tier {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+}
+
+.product-category-tier-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.product-active-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.filter-chip {
+  font-size: 12px;
+  color: #16355f;
+  background: #eaf2ff;
+  border: 1px solid #c6daf8;
+  border-radius: 12px;
+  padding: 2px 10px;
 }
 
 .search-input {

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../../utils/request'
+import { showAppMessage } from '../../utils/appMessage'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,7 +18,8 @@ const stock = ref('0')
 const status = ref(1) // 1=上架,0=下架（沿用现有产品字段）
 const savingBiz = ref(false)
 const description = ref('')
-const imageUrlPreview = ref('') // dataUrl (Mock)
+/** 预览用：外链、已保存路径或本地选择的 data URL */
+const imageUrlPreview = ref('')
 const imageFile = ref(null) // File (for multipart upload)
 const specEntries = ref([{ key: '', value: '' }])
 const BASE_SPEC_TEMPLATE = {
@@ -79,17 +81,17 @@ function parseNonNegativeNumber(v) {
 async function saveBusiness() {
   if (savingBiz.value || loading.value) return
   if (!merchantId) {
-    alert('未获取到商家ID，请重新登录')
+    showAppMessage('未获取到商家ID，请重新登录')
     return
   }
   const p = parseNonNegativeNumber(price.value)
   if (p === null) {
-    alert('价格必须为非负数')
+    showAppMessage('价格必须为非负数')
     return
   }
   const s = parseNonNegativeNumber(stock.value)
   if (s === null) {
-    alert('库存必须为非负数')
+    showAppMessage('库存必须为非负数')
     return
   }
   savingBiz.value = true
@@ -100,11 +102,11 @@ async function saveBusiness() {
   })
   savingBiz.value = false
   if (res.code === 200) {
-    alert('经营信息已保存')
+    showAppMessage('经营信息已保存')
     await load()
     return
   }
-  alert(res.message || '保存失败')
+  showAppMessage(res.message || '保存失败')
 }
 
 function buildSpecObjectFromEntries() {
@@ -133,7 +135,7 @@ async function save() {
   if (loading.value) return
   const built = buildSpecObjectFromEntries()
   if (built.invalid) {
-    alert(built.message || '规格参数不正确，请检查后重试')
+    showAppMessage(built.message || '规格参数不正确，请检查后重试')
     return
   }
 
@@ -144,18 +146,18 @@ async function save() {
     imageFile: imageFile.value,
   })
   if (res.code === 200) {
-    alert('保存成功')
+    showAppMessage('保存成功')
     router.push('/merchant/products')
     return
   }
-  alert(res.message || '保存失败')
+  showAppMessage(res.message || '保存失败')
 }
 
 function onImageFileChange(e) {
   const file = e.target.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) {
-    alert('请选择图片文件')
+    showAppMessage('请选择图片文件')
     return
   }
   imageFile.value = file
@@ -192,7 +194,7 @@ onMounted(load)
     <div class="header">
       <h2>商品内容编辑</h2>
       <p class="desc">
-        正在编辑：{{ productTitle || `商品ID ${productId}` }}；编辑描述、规格参数，并上传图片（Mock：图片以 dataUrl 保存在前端状态中）。
+        正在编辑：{{ productTitle || `商品ID ${productId}` }}；可编辑描述、规格参数，并上传主图（保存后由服务端存储并返回访问路径）。
       </p>
       <div v-if="productTitle" class="chips">
         <span class="chip">ID {{ productId }}</span>
@@ -296,7 +298,7 @@ onMounted(load)
 
             <div class="upload">
               <input type="file" accept="image/*" @change="onImageFileChange" />
-              <div class="hint">支持 png/jpg/webp，Mock 模式下仅用于展示。</div>
+              <div class="hint">支持 png / jpg / webp；选择文件后先本地预览，保存时上传到服务器。</div>
             </div>
           </div>
         </div>

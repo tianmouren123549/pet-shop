@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../utils/request'
+import { showAppMessage } from '../utils/appMessage'
 
 const router = useRouter()
 const username = ref('')
@@ -20,7 +21,8 @@ async function handleAdminLogin() {
     localStorage.setItem('role', roleToStore)
     localStorage.setItem('adminId', String(res.data.adminId))
     localStorage.setItem('adminName', res.data.username || '')
-    alert('管理员登录成功')
+    if (res.data?.token) localStorage.setItem('accessToken', res.data.token)
+    showAppMessage('管理员登录成功', '欢迎')
     router.push('/admin')
   } else {
     errorMsg.value = res.message || '登录失败'
@@ -32,7 +34,7 @@ async function handleAdminLogin() {
   <div class="admin-login-page">
     <div class="admin-login-card">
       <h2>管理员登录</h2>
-      <p>此入口仅用于平台管理员（Mock 账号：admin123）</p>
+      <p>此入口仅供平台管理员使用。请使用运营方分配的账号登录；如需开通或找回账号，请联系系统管理员。</p>
 
       <div class="form-item">
         <label>管理员账号</label>

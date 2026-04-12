@@ -1,7 +1,10 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../utils/request'
+import { showAppMessage } from '../utils/appMessage'
+import { restockSubscribeSuccessBody } from '../utils/apiFriendlyMessage'
+import ConfirmModal from '../components/ConfirmModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,6 +13,26 @@ const productDetail = ref(null)
 const reviews = ref([])
 const quantity = ref(1)
 const userId = ref(Number(localStorage.getItem('userId') || 0))
+
+/**
+ * 从 localStorage 同步当前用户 ID（登录态可能在其它页变更）。
+ */
+function syncUserId() {
+  userId.value = Number(localStorage.getItem('userId') || 0)
+}
+
+/**
+ * 需要登录才能执行的操作（加购、下单、评价等）。
+ * @param {string} [hint] 未登录时的提示文案
+ * @returns {boolean} 已登录为 true
+ */
+function requireLoginForAction(hint = '请先登录后再使用该功能') {
+  syncUserId()
+  if (userId.value) return true
+  showAppMessage(hint, '提示')
+  router.push('/login')
+  return false
+}
 const activeTab = ref('detail')
 const newReview = ref({
   rating: 5,
@@ -28,13 +51,24 @@ const isOffShelf = computed(() => Number(product.value?.status ?? 1) !== 1)
 const isSoldOut = computed(() => Number(product.value?.stock ?? 0) <= 0)
 const canBuy = computed(() => !!product.value && !isOffShelf.value && !isSoldOut.value)
 const subscribing = ref(false)
+/** 立即购买确认弹层 */
+const buyConfirmOpen = ref(false)
+/** 立即购买提交中 */
+const buySubmitting = ref(false)
+
+/**
+ * 立即购买应付金额（单价 × 数量），用于确认弹层展示。
+ * @returns {string} 保留两位小数的金额字符串
+ */
+const buyPayAmount = computed(() => {
+  if (!product.value) return '0.00'
+  const unit = Number(product.value.price) || 0
+  const qty = Number(quantity.value) || 0
+  return (unit * qty).toFixed(2)
+})
 
 onMounted(async () => {
-  if (!userId.value) {
-    alert('请先登录')
-    router.push('/login')
-    return
-  }
+  syncUserId()
   const productId = route.params.id
 
   const productRes = await api.getProduct(productId)
@@ -50,12 +84,40 @@ onMounted(async () => {
   if (reviewsRes.code === 200) {
     reviews.value = reviewsRes.data
   }
+
+  await applyOpenReviewFromQuery()
 })
+
+/**
+ * 从订单「去评价」进入时 URL 带 ?review=1：登录后展开评价表单并滚到评价区，随后去掉 query。
+ */
+async function applyOpenReviewFromQuery() {
+  const flag = route.query.review
+  if (flag !== '1' && flag !== 'true') return
+
+  syncUserId()
+  if (!userId.value) {
+    showAppMessage('请先登录后再评价', '提示')
+    router.push('/login')
+    return
+  }
+
+  showReviewForm.value = true
+  newReview.value = { rating: 5, content: '' }
+
+  await nextTick()
+  document.getElementById('product-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  const rest = { ...route.query }
+  delete rest.review
+  router.replace({ path: route.path, query: Object.keys(rest).length ? rest : {} })
+}
 
 async function addToCart() {
   if (!product.value) return
+  if (!requireLoginForAction()) return
   if (!canBuy.value) {
-    alert(isOffShelf.value ? '商品已下架' : '商品已售罄')
+    showAppMessage(isOffShelf.value ? '商品已下架' : '商品已售罄', '提示')
     return
   }
 
@@ -66,51 +128,55 @@ async function addToCart() {
   })
 
   if (res.code === 200) {
-    alert('已添加到购物车')
+    showAppMessage('已添加到购物车', '购物车')
   } else {
-    alert(res.message || '加入购物车失败')
+    showAppMessage(res.message || '加入购物车失败', '提示')
   }
 }
 
-async function buyNow() {
+function buyNow() {
   if (!product.value) return
+  if (!requireLoginForAction()) return
   if (!canBuy.value) {
-    alert(isOffShelf.value ? '商品已下架' : '商品已售罄')
+    showAppMessage(isOffShelf.value ? '商品已下架' : '商品已售罄', '提示')
     return
   }
-  const ok = confirm('确认立即购买并生成订单吗？（Mock 模式）')
-  if (!ok) return
+  buyConfirmOpen.value = true
+}
+
+/**
+ * 用户确认后立即下单并跳转订单详情。
+ */
+async function submitBuyOrder() {
+  if (!product.value || buySubmitting.value) return
+  if (!requireLoginForAction()) return
+  buySubmitting.value = true
   const res = await api.userCreateOrderDirect({
     userId: userId.value,
     productId: product.value.productId,
     quantity: quantity.value,
   })
+  buySubmitting.value = false
   if (res.code === 200) {
-    alert('下单成功')
+    buyConfirmOpen.value = false
     router.push(`/order/${res.data.orderId}`)
   } else {
-    alert(res.message || '下单失败')
+    showAppMessage(res.message || '下单失败', '提示')
   }
 }
 
 function contactMerchant() {
   if (!product.value) return
-  if (!userId.value) {
-    alert('请先登录')
-    return
-  }
+  if (!requireLoginForAction('请先登录后再联系商家')) return
   const merchantId = Number(product.value.merchantId || 1)
   router.push(`/support?merchantId=${merchantId}&productId=${product.value.productId}`)
 }
 
 async function subscribeRestock() {
   if (!product.value) return
-  if (!userId.value) {
-    alert('请先登录')
-    return
-  }
+  if (!requireLoginForAction('请先登录后再订阅到货提醒')) return
   if (!isSoldOut.value) {
-    alert('当前商品仍有库存，无需开启到货提醒')
+    showAppMessage('当前商品仍有库存，无需开启到货提醒', '提示')
     return
   }
   if (subscribing.value) return
@@ -118,15 +184,16 @@ async function subscribeRestock() {
   const res = await api.userSubscribeRestock({ userId: userId.value, productId: product.value.productId })
   subscribing.value = false
   if (res.code === 200) {
-    alert(res.message || '已开启到货提醒')
+    showAppMessage(restockSubscribeSuccessBody(res.message), '订阅成功')
   } else {
-    alert(res.message || '操作失败')
+    showAppMessage(res.message || '操作失败', '提示')
   }
 }
 
 async function submitReview() {
+  if (!requireLoginForAction('请先登录后再评价')) return
   if (!newReview.value.content.trim()) {
-    alert('请输入评价内容')
+    showAppMessage('请输入评价内容', '提示')
     return
   }
 
@@ -138,7 +205,7 @@ async function submitReview() {
   })
 
   if (res.code === 200) {
-    alert('评价成功')
+    showAppMessage('评价成功', '提示')
     newReview.value = { rating: 5, content: '' }
     showReviewForm.value = false
 
@@ -147,7 +214,7 @@ async function submitReview() {
       reviews.value = reviewsRes.data
     }
   } else {
-    alert(res.message || '评价提交失败')
+    showAppMessage(res.message || '评价提交失败', '提示')
   }
 }
 
@@ -157,6 +224,18 @@ function goBack() {
 
 function getStarRating(rating) {
   return '★'.repeat(rating) + '☆'.repeat(5 - rating)
+}
+
+/**
+ * 展开/收起写评价表单；未登录时仅提示并跳转登录。
+ */
+function toggleReviewForm() {
+  syncUserId()
+  if (!showReviewForm.value && !userId.value) {
+    requireLoginForAction('请先登录后再评价')
+    return
+  }
+  showReviewForm.value = !showReviewForm.value
 }
 </script>
 
@@ -300,7 +379,7 @@ function getStarRating(rating) {
       </div>
     </div>
 
-    <div class="reviews-section">
+    <div id="product-reviews" class="reviews-section">
       <div class="section-header">
         <div class="header-left">
           <h2>用户评价</h2>
@@ -309,7 +388,7 @@ function getStarRating(rating) {
             平均评分: {{ avgRating }} {{ getStarRating(Math.round(avgRating)) }}
           </span>
         </div>
-        <button class="btn-write-review" @click="showReviewForm = !showReviewForm">
+        <button type="button" class="btn-write-review" @click="toggleReviewForm">
           {{ showReviewForm ? '取消评价' : '写评价' }}
         </button>
       </div>
@@ -351,8 +430,8 @@ function getStarRating(rating) {
         <div v-for="review in reviews" :key="review.reviewId" class="review-card">
           <div class="review-header">
             <div class="reviewer-info">
-              <div class="reviewer-avatar">{{ review.userId.toString().slice(-1) }}</div>
-              <span class="reviewer-name">用户{{ review.userId }}</span>
+              <div class="reviewer-avatar">{{ (review.userNickname || String(review.userId)).toString().slice(-1) }}</div>
+              <span class="reviewer-name">{{ review.userNickname || `用户${review.userId}` }}</span>
             </div>
             <div class="review-meta">
               <span class="review-rating">{{ getStarRating(review.rating) }}</span>
@@ -360,12 +439,23 @@ function getStarRating(rating) {
             </div>
           </div>
           <p class="review-content">{{ review.content }}</p>
-          <div v-if="review.goldenRetrieverScore > 0" class="review-tag">
-            金毛相关度: {{ (review.goldenRetrieverScore * 100).toFixed(0) }}%
-          </div>
         </div>
       </div>
     </div>
+
+    <ConfirmModal
+      :open="buyConfirmOpen"
+      title="确认下单"
+      confirm-label="确认购买"
+      :loading="buySubmitting"
+      @update:open="buyConfirmOpen = $event"
+      @confirm="submitBuyOrder"
+    >
+      <p>请核对本次购买信息：</p>
+      <p v-if="product"><strong>商品：</strong>{{ product.title }}</p>
+      <p v-if="product"><strong>数量：</strong>{{ quantity }} 件</p>
+      <p v-if="product"><strong>应付金额：</strong>¥{{ buyPayAmount }}</p>
+    </ConfirmModal>
   </div>
 </template>
 
@@ -906,15 +996,5 @@ function getStarRating(rating) {
   color: #666;
   font-size: 14px;
   margin-bottom: 12px;
-}
-
-.review-tag {
-  display: inline-block;
-  padding: 4px 8px;
-  background: #f6ffed;
-  color: #52c41a;
-  border-radius: 2px;
-  font-size: 12px;
-  border: 1px solid #b7eb8f;
 }
 </style>

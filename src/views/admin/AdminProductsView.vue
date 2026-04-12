@@ -1,18 +1,48 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '../../utils/request'
+import { showAppMessage } from '../../utils/appMessage'
 import PaginationBar from '../../components/PaginationBar.vue'
+import ConfirmModal from '../../components/ConfirmModal.vue'
 
 const products = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
 const sending = ref({})
 const bulkSending = ref(false)
+const restockConfirmOpen = ref(false)
+/** 待确认发送补货提醒的商品行 */
+const restockPending = ref(null)
+const bulkConfirmOpen = ref(false)
+
+const route = useRoute()
+/** 来自 URL ?shelf=online | offline，与商家筛选叠加 */
+const shelfFilter = ref('')
+
+function syncShelfFromQuery(query) {
+  const v = String(query?.shelf || '').toLowerCase()
+  shelfFilter.value = v === 'online' || v === 'offline' ? v : ''
+}
+
+watch(
+  () => route.query.shelf,
+  () => {
+    syncShelfFromQuery(route.query)
+    page.value = 1
+  },
+)
+
+const lowStockCount = computed(() => (products.value || []).filter((p) => Number(p.stock || 0) < 20).length)
 const selectedMerchantId = ref('ALL') // 'ALL' | number-string
 const keyword = ref('')
 const groupByMerchant = ref(true)
 const page = ref(1)
 const pageSize = ref(10)
+/** 按商家分组时，每个店铺表格内约可见行数（超出则在块内滚动） */
+const MERCHANT_GROUP_VISIBLE_ROWS = 5
+/** 按商家分组时，底部分页按「店铺」计数：每页展示的店铺数 */
+const SHOPS_PER_PAGE = 2
 
 const stats = computed(() => {
   const list = products.value || []
@@ -47,6 +77,8 @@ const filteredProducts = computed(() => {
   const midSel = selectedMerchantId.value === 'ALL' ? null : Number(selectedMerchantId.value || 0)
   return list.filter((p) => {
     if (midSel && Number(p?.merchantId || 0) !== midSel) return false
+    if (shelfFilter.value === 'online' && Number(p?.status) !== 1) return false
+    if (shelfFilter.value === 'offline' && Number(p?.status) !== 0) return false
     if (!kw) return true
     const title = normalize(p?.title)
     const pid = String(p?.productId ?? '')
@@ -60,23 +92,8 @@ watch([selectedMerchantId, keyword, groupByMerchant], () => {
   page.value = 1
 })
 
-const total = computed(() => (Array.isArray(filteredProducts.value) ? filteredProducts.value.length : 0))
-const pagedFilteredProducts = computed(() => {
+const merchantGroupsAll = computed(() => {
   const list = Array.isArray(filteredProducts.value) ? filteredProducts.value : []
-  const p = Math.max(1, Number(page.value || 1))
-  const ps = Math.max(1, Number(pageSize.value || 1))
-  const start = (p - 1) * ps
-  return list.slice(start, start + ps)
-})
-
-function setPageSize(n) {
-  pageSize.value = Number(n || 10)
-  page.value = 1
-}
-
-const groupedProducts = computed(() => {
-  const list = pagedFilteredProducts.value
-  if (!groupByMerchant.value) return []
   const map = new Map()
   for (const p of list) {
     const mid = Number(p?.merchantId || 0) || 0
@@ -98,6 +115,60 @@ const groupedProducts = computed(() => {
   })
 })
 
+const total = computed(() => (Array.isArray(filteredProducts.value) ? filteredProducts.value.length : 0))
+const pagedFilteredProducts = computed(() => {
+  const list = Array.isArray(filteredProducts.value) ? filteredProducts.value : []
+  const p = Math.max(1, Number(page.value || 1))
+  const ps = Math.max(1, Number(pageSize.value || 1))
+  const start = (p - 1) * ps
+  return list.slice(start, start + ps)
+})
+
+/** 全部商家 + 分组：底部分页按「店铺」；其它情况按「商品」 */
+const useShopLevelPagination = computed(
+  () => groupByMerchant.value && selectedMerchantId.value === 'ALL',
+)
+
+watch([merchantGroupsAll, groupByMerchant, selectedMerchantId], () => {
+  if (!groupByMerchant.value || selectedMerchantId.value !== 'ALL') return
+  const totalShops = merchantGroupsAll.value.length
+  const tp = Math.max(1, Math.ceil(totalShops / SHOPS_PER_PAGE))
+  if (page.value > tp) page.value = tp
+})
+
+watch([total, pageSize, groupByMerchant, selectedMerchantId], () => {
+  if (useShopLevelPagination.value) return
+  const tp = Math.max(1, Math.ceil(Number(total.value || 0) / Math.max(1, Number(pageSize.value || 1))))
+  if (page.value > tp) page.value = tp
+})
+
+function setPageSize(n) {
+  pageSize.value = Number(n || 10)
+  page.value = 1
+}
+
+const groupedProducts = computed(() => {
+  if (!groupByMerchant.value) return []
+  const all = merchantGroupsAll.value
+  if (selectedMerchantId.value !== 'ALL') {
+    const g = all[0]
+    if (!g) return []
+    return [
+      {
+        merchantId: g.merchantId,
+        shopName: g.shopName,
+        items: pagedFilteredProducts.value,
+        itemTotal: g.items.length,
+      },
+    ]
+  }
+  const p = Math.max(1, Number(page.value || 1))
+  const start = (p - 1) * SHOPS_PER_PAGE
+  return all.slice(start, start + SHOPS_PER_PAGE).map((row) => ({ ...row, itemTotal: row.items.length }))
+})
+
+const groupPaginationTotal = computed(() => merchantGroupsAll.value.length)
+
 async function loadProducts() {
   loading.value = true
   const res = await api.adminGetProducts()
@@ -115,7 +186,7 @@ async function toggleStatus(item) {
   if (res.code === 200) {
     await loadProducts()
   } else {
-    alert(res.message || '操作失败')
+    showAppMessage(res.message || '操作失败', '提示')
   }
 }
 
@@ -125,33 +196,59 @@ function merchantText(item) {
   return name || (mid ? `商家${mid}` : '-')
 }
 
-async function notifyRestock(item) {
+function notifyRestock(item) {
   const pid = item.productId
   if (!pid) return
   if (sending.value[pid]) return
+  restockPending.value = item
+  restockConfirmOpen.value = true
+}
+
+/**
+ * 确认后向商家发送单条补货提醒。
+ */
+async function confirmNotifyRestock() {
+  const item = restockPending.value
+  if (!item?.productId) {
+    restockConfirmOpen.value = false
+    return
+  }
+  const pid = item.productId
+  if (sending.value[pid]) return
   const stockNum = Number(item.stock || 0)
   const reason = stockNum <= 0 ? '售罄' : stockNum < 20 ? '库存紧张' : '常规提醒'
-  const okGo = confirm(`确定发送补货提醒？\n商品：${item.title}\n原因：${reason}\n当前库存：${stockNum}`)
-  if (!okGo) return
   sending.value = { ...(sending.value || {}), [pid]: true }
   const res = await api.adminNotifyRestock(pid, { reason })
   sending.value = { ...(sending.value || {}), [pid]: false }
+  restockConfirmOpen.value = false
+  restockPending.value = null
   if (res.code === 200) {
-    alert('已发送补货提醒（商家端可见）')
+    showAppMessage('已发送补货提醒，商家可在通知中心查看', '发送成功')
   } else {
-    alert(res.message || '发送失败')
+    showAppMessage(res.message || '发送失败', '提示')
   }
 }
 
-async function notifyLowStockBatch() {
+function notifyLowStockBatch() {
+  if (bulkSending.value) return
+  if (!lowStockCount.value) {
+    showAppMessage('当前没有低库存/售罄商品（库存 < 20）', '提示')
+    return
+  }
+  bulkConfirmOpen.value = true
+}
+
+/**
+ * 确认后批量发送低库存补货提醒。
+ */
+async function confirmBulkNotify() {
   if (bulkSending.value) return
   const targets = (products.value || []).filter((p) => Number(p.stock || 0) < 20)
   if (!targets.length) {
-    alert('当前没有低库存/售罄商品（库存 < 20）')
+    bulkConfirmOpen.value = false
     return
   }
-  const okGo = confirm(`确定一键提醒低库存商品？\n将发送 ${targets.length} 条补货提醒。`)
-  if (!okGo) return
+  bulkConfirmOpen.value = false
   bulkSending.value = true
   let okCount = 0
   for (const item of targets) {
@@ -165,16 +262,23 @@ async function notifyLowStockBatch() {
     if (res.code === 200) okCount += 1
   }
   bulkSending.value = false
-  alert(`已发送 ${okCount}/${targets.length} 条补货提醒`)
+  showAppMessage(`已发送 ${okCount}/${targets.length} 条补货提醒`, '批量提醒')
 }
 
-onMounted(loadProducts)
+onMounted(async () => {
+  syncShelfFromQuery(route.query)
+  await loadProducts()
+})
 </script>
 
 <template>
   <div class="admin-page">
     <h2>商品管理（平台监管）</h2>
-    <p class="desc">平台侧仅做监管：查看全站商品并强制下架/恢复。价格与库存由商家端维护。</p>
+    <p class="desc">运营人员可浏览全站商品，必要时执行下架或恢复上架；商品标价与库存以各店铺维护为准。</p>
+    <p v-if="shelfFilter" class="shelf-banner">
+      当前仅显示<strong>{{ shelfFilter === 'online' ? '上架中' : '已下架' }}</strong>商品。
+      <RouterLink class="shelf-banner-link" to="/admin/products">查看全部商品</RouterLink>
+    </p>
 
     <div class="stats">
       <div class="stat"><span>商品总数</span><strong>{{ stats.total }}</strong></div>
@@ -215,7 +319,12 @@ onMounted(loadProducts)
         按商家分组展示
       </label>
       <div class="filter-right">
-        <span class="filter-hint">当前 {{ filteredProducts.length }} 件</span>
+        <span class="filter-hint">
+          当前 {{ filteredProducts.length }} 件
+          <template v-if="groupByMerchant && selectedMerchantId === 'ALL'">
+            · 每页 {{ SHOPS_PER_PAGE }} 家店铺 · 各店铺表格内独立滚动（约 {{ MERCHANT_GROUP_VISIBLE_ROWS }} 行高）
+          </template>
+        </span>
       </div>
     </div>
 
@@ -231,51 +340,60 @@ onMounted(loadProducts)
               <div class="group-title">
                 <strong class="group-name">{{ g.shopName }}</strong>
                 <span class="group-meta">（ID: {{ g.merchantId || '—' }}）</span>
-                <span class="group-count">{{ g.items.length }} 件</span>
+                <span class="group-count">{{ g.itemTotal ?? g.items.length }} 件</span>
               </div>
             </div>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>名称</th>
-                  <th>价格</th>
-                  <th>库存</th>
-                  <th>状态</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in g.items" :key="item.productId">
-                  <td>{{ item.productId }}</td>
-                  <td>{{ item.title }}</td>
-                  <td>¥{{ Number(item.price).toFixed(2) }}</td>
-                  <td>
-                    <div class="stock-cell">
-                      <span class="stock-num">{{ item.stock }}</span>
-                      <span v-if="Number(item.stock) <= 0" class="stock-tag soldout">售罄</span>
-                      <span v-else-if="Number(item.stock) < 20" class="stock-tag low">库存紧张</span>
-                    </div>
-                  </td>
-                  <td><span :class="['status', item.status === 1 ? 'ok' : 'off']">{{ item.status === 1 ? '上架中' : '已下架' }}</span></td>
-                  <td>
-                    <div class="btn-group">
-                      <button class="action-btn primary" @click="toggleStatus(item)">
-                        {{ item.status === 1 ? '下架' : '上架' }}
-                      </button>
-                      <button
-                        class="action-btn"
-                        :class="{ warn: Number(item.stock) < 20 }"
-                        :disabled="sending[item.productId]"
-                        @click="notifyRestock(item)"
-                      >
-                        {{ sending[item.productId] ? '发送中...' : '补货提醒' }}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div
+              :class="selectedMerchantId === 'ALL' ? 'group-table-scroll' : 'group-table-wrap'"
+              :style="
+                selectedMerchantId === 'ALL'
+                  ? { '--merchant-visible-rows': MERCHANT_GROUP_VISIBLE_ROWS }
+                  : undefined
+              "
+            >
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>名称</th>
+                    <th>价格</th>
+                    <th>库存</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in g.items" :key="item.productId">
+                    <td>{{ item.productId }}</td>
+                    <td>{{ item.title }}</td>
+                    <td>¥{{ Number(item.price).toFixed(2) }}</td>
+                    <td>
+                      <div class="stock-cell">
+                        <span class="stock-num">{{ item.stock }}</span>
+                        <span v-if="Number(item.stock) <= 0" class="stock-tag soldout">售罄</span>
+                        <span v-else-if="Number(item.stock) < 20" class="stock-tag low">库存紧张</span>
+                      </div>
+                    </td>
+                    <td><span :class="['status', item.status === 1 ? 'ok' : 'off']">{{ item.status === 1 ? '上架中' : '已下架' }}</span></td>
+                    <td>
+                      <div class="btn-group">
+                        <button class="action-btn primary" @click="toggleStatus(item)">
+                          {{ item.status === 1 ? '下架' : '上架' }}
+                        </button>
+                        <button
+                          class="action-btn"
+                          :class="{ warn: Number(item.stock) < 20 }"
+                          :disabled="sending[item.productId]"
+                          @click="notifyRestock(item)"
+                        >
+                          {{ sending[item.productId] ? '发送中...' : '补货提醒' }}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </template>
@@ -329,6 +447,16 @@ onMounted(loadProducts)
       </table>
 
       <PaginationBar
+        v-if="useShopLevelPagination"
+        :page="page"
+        :page-size="SHOPS_PER_PAGE"
+        :total="groupPaginationTotal"
+        :page-size-options="[]"
+        @update:page="page = $event"
+        @update:page-size="() => {}"
+      />
+      <PaginationBar
+        v-else
         :page="page"
         :page-size="pageSize"
         :total="total"
@@ -337,6 +465,40 @@ onMounted(loadProducts)
         @update:page-size="setPageSize"
       />
     </template>
+
+    <ConfirmModal
+      :open="restockConfirmOpen"
+      title="发送补货提醒"
+      confirm-label="确定发送"
+      @update:open="restockConfirmOpen = $event"
+      @confirm="confirmNotifyRestock"
+    >
+      <template v-if="restockPending">
+        <p>将向商家发送一条补货提醒通知。</p>
+        <p><strong>商品：</strong>{{ restockPending.title }}</p>
+        <p>
+          <strong>原因：</strong>
+          {{
+            Number(restockPending.stock || 0) <= 0
+              ? '售罄'
+              : Number(restockPending.stock || 0) < 20
+                ? '库存紧张'
+                : '常规提醒'
+          }}
+        </p>
+        <p><strong>当前库存：</strong>{{ restockPending.stock }}</p>
+      </template>
+    </ConfirmModal>
+
+    <ConfirmModal
+      :open="bulkConfirmOpen"
+      title="一键提醒低库存"
+      confirm-label="确定发送"
+      @update:open="bulkConfirmOpen = $event"
+      @confirm="confirmBulkNotify"
+    >
+      <p>将向各商品对应商家发送补货提醒，共 {{ lowStockCount }} 条。确定继续吗？</p>
+    </ConfirmModal>
   </div>
 </template>
 
@@ -344,6 +506,22 @@ onMounted(loadProducts)
 .admin-page { background: #f4f6f9; padding: 8px; }
 h2 { font-size: 34px; color: #1a2740; }
 .desc { color: #68788d; font-size: 13px; margin: 8px 0 14px; }
+
+.shelf-banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  border: 1px solid #c9d4e4;
+  background: #f0f4fa;
+  color: #304862;
+  font-size: 13px;
+  font-weight: 700;
+}
+.shelf-banner-link {
+  margin-left: 10px;
+  color: #0b1630;
+  font-weight: 900;
+}
 
 .stats {
   display: grid;
@@ -421,6 +599,28 @@ h2 { font-size: 34px; color: #1a2740; }
   border: 1px solid #dbe3ee;
   background: #fcfdff;
 }
+
+.group-table-scroll {
+  --merchant-row-h: 44px;
+  --merchant-thead-h: 40px;
+  max-height: calc(var(--merchant-thead-h) + var(--merchant-visible-rows, 5) * var(--merchant-row-h));
+  overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-top: 1px solid #ecf0f5;
+}
+.group-table-scroll .table { border-top: none; border-left: none; border-right: none; border-bottom: none; }
+.group-table-scroll .table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-shadow: 0 1px 0 #ecf0f5;
+}
+
+.group-table-wrap {
+  border-top: 1px solid #ecf0f5;
+}
+.group-table-wrap .table { border-top: none; border-left: none; border-right: none; border-bottom: none; }
 
 .table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #dbe3ed; }
 .table th, .table td { border-bottom: 1px solid #ecf0f5; padding: 12px 10px; font-size: 13px; color: #26354b; }

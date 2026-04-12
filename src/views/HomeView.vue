@@ -2,13 +2,17 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../utils/request'
+import { formatCategoryWithParent } from '../utils/categoryDisplay'
+import { getFlatCategoryNavCategories } from '../utils/categoryNav'
 
 const router = useRouter()
 const products = ref([])
-const categories = ref([])
+const allCategories = ref([])
+const flatNavCategories = computed(() =>
+  getFlatCategoryNavCategories(allCategories.value)
+)
 const selectedCategory = ref(null)
 const keyword = ref('')
-const appliedKeyword = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
 const localHotKeywords = ref([])
@@ -16,7 +20,7 @@ const HOT_KEYWORDS_STORAGE_KEY = 'petshop_hot_keywords_v1'
 const showHotPanel = ref(false)
 const hotPage = ref(0)
 const HOT_PANEL_PAGE_SIZE = 6
-const defaultMockHotKeywords = [
+const defaultHotKeywords = [
   '猫粮',
   '狗粮',
   '猫砂',
@@ -38,9 +42,9 @@ onMounted(async () => {
 })
 
 async function loadCategories() {
-  const res = await api.getRootCategories()
+  const res = await api.getCategories()
   if (res.code === 200) {
-    categories.value = res.data
+    allCategories.value = res.data
   } else {
     errorMsg.value = res.message || '分类加载失败'
   }
@@ -49,18 +53,12 @@ async function loadCategories() {
 async function loadProducts() {
   loading.value = true
   errorMsg.value = ''
-  const res = selectedCategory.value 
+  const res = selectedCategory.value
     ? await api.getProductsByCategory(selectedCategory.value)
     : await api.getProducts()
-  
+
   if (res.code === 200) {
-    const list = Array.isArray(res.data) ? res.data : []
-    const kw = appliedKeyword.value.trim().toLowerCase()
-    products.value = !kw
-      ? list
-      : list.filter((p) => {
-        return String(p.title || '').toLowerCase().includes(kw) || String(p.productId).includes(kw)
-      })
+    products.value = Array.isArray(res.data) ? res.data : []
   } else {
     errorMsg.value = res.message || '商品加载失败'
     products.value = []
@@ -74,15 +72,16 @@ function filterByCategory(categoryId) {
 }
 
 function runSearch() {
-  appliedKeyword.value = keyword.value
-  recordSearchKeyword(appliedKeyword.value)
+  const q = String(keyword.value || '').trim()
   showHotPanel.value = false
-  loadProducts()
+  if (q) {
+    recordSearchKeyword(q)
+  }
+  router.push(q ? { path: '/products', query: { q } } : { path: '/products' })
 }
 
 function resetSearch() {
   keyword.value = ''
-  appliedKeyword.value = ''
   selectedCategory.value = null
   loadProducts()
 }
@@ -122,11 +121,14 @@ function recordSearchKeyword(value) {
 
 function quickSearch(term) {
   keyword.value = term
-  runSearch()
+  const q = String(term || '').trim()
+  if (q) recordSearchKeyword(q)
+  router.push(q ? { path: '/products', query: { q } } : { path: '/products' })
+  showHotPanel.value = false
 }
 
 const displayHotKeywords = computed(() => {
-  return localHotKeywords.value.length > 0 ? localHotKeywords.value : defaultMockHotKeywords
+  return localHotKeywords.value.length > 0 ? localHotKeywords.value : defaultHotKeywords
 })
 
 const hotPanelTerms = computed(() => {
@@ -149,12 +151,17 @@ function viewDetail(productId) {
   router.push(`/product/${productId}`)
 }
 
+function categoryDisplayName(product) {
+  return formatCategoryWithParent(product, allCategories.value)
+}
+
 const recommendedProducts = computed(() => {
   const list = Array.isArray(products.value) ? [...products.value] : []
-  // 前端演示版推荐：优先常见主粮类目与高库存商品，后续可替换为模型接口结果
+  // 首页推荐排序：优先主粮类目与高库存，突出常购与供应充足商品
   list.sort((a, b) => {
-    const aFood = [4, 5, 6, 7].includes(Number(a.categoryId)) ? 1 : 0
-    const bFood = [4, 5, 6, 7].includes(Number(b.categoryId)) ? 1 : 0
+    const foodCats = [4, 5, 6, 7, 10, 11, 12, 13, 14, 15]
+    const aFood = foodCats.includes(Number(a.categoryId)) ? 1 : 0
+    const bFood = foodCats.includes(Number(b.categoryId)) ? 1 : 0
     if (aFood !== bFood) return bFood - aFood
     return Number(b.stock || 0) - Number(a.stock || 0)
   })
@@ -163,7 +170,9 @@ const recommendedProducts = computed(() => {
 
 const selectedCategoryName = computed(() => {
   if (!selectedCategory.value) return ''
-  const hit = categories.value.find((c) => c.categoryId === selectedCategory.value)
+  const hit = allCategories.value.find(
+    (c) => Number(c.categoryId) === Number(selectedCategory.value)
+  )
   return hit ? hit.name : ''
 })
 </script>
@@ -200,12 +209,11 @@ const selectedCategoryName = computed(() => {
           </div>
         </div>
         <div class="search-sub">
-          <button class="sub-link" @click="resetSearch">清空筛选</button>
-          <span>支持按商品名称或ID搜索</span>
+          <button class="sub-link" @click="resetSearch">清空分类筛选</button>
+          <span>搜索后将进入商品列表查看匹配结果，与下方首页精选互不干扰。</span>
         </div>
-        <div v-if="appliedKeyword || selectedCategoryName" class="active-filters">
-          <span v-if="appliedKeyword" class="filter-chip">关键词：{{ appliedKeyword }}</span>
-          <span v-if="selectedCategoryName" class="filter-chip">分类：{{ selectedCategoryName }}</span>
+        <div v-if="selectedCategoryName" class="active-filters">
+          <span class="filter-chip">当前浏览分类：{{ selectedCategoryName }}</span>
         </div>
       </div>
     </section>
@@ -214,7 +222,7 @@ const selectedCategoryName = computed(() => {
       <div class="hero-overlay">
         <p class="hero-tag">专业级宠物供应体系</p>
         <h2>高标准宠物电商<br />运营中枢</h2>
-        <p class="hero-desc">离线 Mock 演示环境，覆盖用户端浏览、购物、评价与管理端运营流程。</p>
+        <p class="hero-desc">宠物用品在线选购，支持浏览、购物车、下单与评价；店铺履约与平台服务协同，为您与爱宠保驾护航。</p>
         <div class="hero-actions">
           <button class="hero-btn primary" @click="$router.push('/products')">浏览商品目录</button>
         </div>
@@ -242,7 +250,7 @@ const selectedCategoryName = computed(() => {
             <div class="product-info">
               <h3 class="product-title" :title="product.title">{{ product.title }}</h3>
               <p class="product-meta">
-                <span class="category-tag">{{ product.categoryName }}</span>
+                <span class="category-tag">{{ categoryDisplayName(product) }}</span>
                 <span v-if="product.brandName" class="brand-tag">{{ product.brandName }}</span>
               </p>
               <div class="product-footer">
@@ -266,14 +274,18 @@ const selectedCategoryName = computed(() => {
         >
           全部商品
         </button>
-        <button
-          v-for="cat in categories"
-          :key="cat.categoryId"
-          :class="['category-btn', { active: selectedCategory === cat.categoryId }]"
-          @click="filterByCategory(cat.categoryId)"
-        >
-          {{ cat.name }}
-        </button>
+        <div v-if="flatNavCategories.length" class="category-tier">
+          <div class="category-tier-btns">
+            <button
+              v-for="cat in flatNavCategories"
+              :key="`nav-${cat.categoryId}`"
+              :class="['category-btn', { active: selectedCategory === cat.categoryId }]"
+              @click="filterByCategory(cat.categoryId)"
+            >
+              {{ cat.name }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -312,7 +324,7 @@ const selectedCategoryName = computed(() => {
           <div class="product-info">
             <h3 class="product-title" :title="product.title">{{ product.title }}</h3>
             <p class="product-meta">
-              <span class="category-tag">{{ product.categoryName }}</span>
+              <span class="category-tag">{{ categoryDisplayName(product) }}</span>
               <span v-if="product.brandName" class="brand-tag">{{ product.brandName }}</span>
             </p>
             <div class="product-footer">
@@ -330,7 +342,7 @@ const selectedCategoryName = computed(() => {
         <h3>面向规模化运营<br />打造稳定履约体系</h3>
         <ul>
           <li>冷链配送能力</li>
-          <li>库存管理接口</li>
+          <li>智能库存与补货协同</li>
           <li>商家协同管理</li>
         </ul>
       </div>
@@ -603,8 +615,23 @@ const selectedCategoryName = computed(() => {
 
 .categories {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.category-tier {
+  display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 14px;
+}
+
+.category-tier-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .recommend-strip {

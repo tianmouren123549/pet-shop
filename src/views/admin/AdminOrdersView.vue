@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { api } from '../../utils/request'
+import { showAppMessage } from '../../utils/appMessage'
 import PaginationBar from '../../components/PaginationBar.vue'
 
 const orders = ref([])
@@ -11,6 +13,21 @@ const loading = ref(false)
 const errorMsg = ref('')
 const page = ref(1)
 const pageSize = ref(10)
+const router = useRouter()
+const route = useRoute()
+
+function syncStatusFromRoute(query) {
+  const raw = String(query?.status || '').toUpperCase()
+  const ok = ['CREATED', 'PAID', 'SHIPPED', 'COMPLETED', 'CANCELLED'].includes(raw)
+  statusFilter.value = ok ? raw : ''
+}
+
+function onStatusFilterChange() {
+  router.replace({
+    path: '/admin/orders',
+    query: statusFilter.value ? { status: statusFilter.value } : {},
+  })
+}
 
 const stats = computed(() => {
   const m = { CREATED: 0, PAID: 0, SHIPPED: 0, COMPLETED: 0, CANCELLED: 0 }
@@ -25,7 +42,7 @@ function statusText(s) {
   return s === 'CREATED'
     ? '待支付'
     : s === 'PAID'
-      ? '已支付'
+      ? '待发货'
       : s === 'SHIPPED'
         ? '已发货'
         : s === 'COMPLETED'
@@ -91,17 +108,25 @@ async function updateStatus(orderId, status) {
   if (res.code === 200) {
     await loadOrders()
   } else {
-    alert(res.message || '状态更新失败')
+    showAppMessage(res.message || '状态更新失败', '提示')
   }
 }
 
-onMounted(loadOrders)
+onMounted(async () => {
+  syncStatusFromRoute(route.query)
+  await loadOrders()
+})
+
+onBeforeRouteUpdate(async (to) => {
+  syncStatusFromRoute(to.query)
+  await loadOrders()
+})
 </script>
 
 <template>
   <div class="admin-page">
     <h2>订单管理中心</h2>
-    <p class="desc">查看全站订单状态；平台侧仅处理异常（取消）。发货由商家端执行。</p>
+    <p class="desc">查看全站订单与流转进度；平台可在纠纷等场景协助取消订单。发货与履约由对应商家处理。</p>
 
     <div class="stats">
       <div class="stat"><span>待支付</span><strong>{{ stats.CREATED }}</strong></div>
@@ -112,10 +137,10 @@ onMounted(loadOrders)
     </div>
 
     <div class="toolbar">
-      <select v-model="statusFilter" @change="loadOrders">
+      <select v-model="statusFilter" @change="onStatusFilterChange">
         <option value="">全部状态</option>
         <option value="CREATED">待支付</option>
-        <option value="PAID">已支付</option>
+        <option value="PAID">待发货</option>
         <option value="SHIPPED">已发货</option>
         <option value="COMPLETED">已完成</option>
         <option value="CANCELLED">已取消</option>
@@ -137,9 +162,8 @@ onMounted(loadOrders)
     <table v-else class="table">
       <thead>
         <tr>
-          <th>订单ID</th>
           <th>订单号</th>
-          <th>用户ID</th>
+          <th>用户昵称</th>
           <th>商品数</th>
           <th>金额</th>
           <th>状态</th>
@@ -149,15 +173,22 @@ onMounted(loadOrders)
       </thead>
       <tbody>
         <tr v-for="item in pagedOrders" :key="item.orderId">
-          <td>{{ item.orderId }}</td>
-          <td>{{ item.orderNo }}</td>
-          <td>{{ item.userId }}</td>
+          <td>
+            <button type="button" class="link-order" @click="router.push(`/admin/orders/${item.orderId}`)">
+              {{ item.orderNo }}
+            </button>
+            <div class="id-sub">ID {{ item.orderId }}</div>
+          </td>
+          <td>
+            <span class="nick">{{ item.userNickname || `用户${item.userId}` }}</span>
+          </td>
           <td>{{ item.itemCount ?? '-' }}</td>
           <td>¥{{ item.payAmount }}</td>
           <td><span class="status">{{ statusText(item.status) }}</span></td>
           <td>{{ item.createdAt ? new Date(item.createdAt).toLocaleString() : '-' }}</td>
           <td>
             <div class="btn-group">
+              <button type="button" class="btn ghost" @click="router.push(`/admin/orders/${item.orderId}`)">详情</button>
               <button class="btn danger" v-if="item.status === 'CREATED' || item.status === 'PAID'" @click="updateStatus(item.orderId, 'CANCELLED')">取消</button>
             </div>
           </td>
@@ -222,6 +253,21 @@ select { height: 32px; padding: 0 8px; border: 1px solid #ccd7e6; background: #f
 .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn { height: 28px; padding: 0 10px; border: 1px solid #cad6e6; background: #f9fbff; color: #24344f; border-radius: 2px; cursor: pointer; font-size: 12px; font-weight: 700; }
 .btn.danger { border-color: #ff4d4f; background: #fff1f1; color: #a73636; }
+.btn.ghost { border-color: #c9d4e4; background: #f8fbff; color: #23344f; }
+.link-order {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #16355f;
+  font-weight: 800;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link-order:hover { color: #0b1630; }
+.id-sub { font-size: 11px; color: #8a96a8; margin-top: 4px; }
+.nick { font-weight: 600; color: #26354b; }
 
 @media (max-width: 980px) {
   .stats { grid-template-columns: repeat(2, 1fr); }

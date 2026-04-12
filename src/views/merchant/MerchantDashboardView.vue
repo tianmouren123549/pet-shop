@@ -4,49 +4,203 @@ import { useRouter } from 'vue-router'
 import { api } from '../../utils/request'
 
 const router = useRouter()
+const merchantId = ref(Number(localStorage.getItem('adminId') || 0))
+const dashboardError = ref('')
+const loading = ref(false)
 const products = ref([])
 const orders = ref([])
+/** 每周销售额目标（元），来自商家资料 API，空串表示未设置 */
+const salesTargetWeeklyStr = ref('')
+
+/** @param {unknown} o */
+function normOrderStatus(o) {
+  return String(o?.status ?? '')
+    .trim()
+    .toUpperCase()
+}
+
+/** @param {unknown} p */
+function stockNum(p) {
+  const n = Number(p?.stock)
+  return Number.isFinite(n) ? n : 0
+}
+
+/**
+ * 订单状态展示文案（与订单管理页一致）。
+ * @param {string} s
+ */
+function orderStatusLabel(s) {
+  if (s === 'CREATED') return '待支付'
+  if (s === 'PAID') return '待发货'
+  if (s === 'SHIPPED') return '已发货'
+  if (s === 'COMPLETED') return '已完成'
+  if (s === 'CANCELLED') return '已取消'
+  return s || '未知'
+}
+
+/**
+ * 已产生实付、应计入营收的主状态（待支付/已取消不计入）。
+ * @param {string} s
+ */
+function isPaidLikeStatus(s) {
+  return s === 'PAID' || s === 'SHIPPED' || s === 'COMPLETED'
+}
 
 const onlineProducts = computed(() => products.value.filter((p) => p.status === 1).length)
-const paidOrders = computed(() => orders.value.filter((o) => o.status === 'PAID').length)
+const paidOrders = computed(() => orders.value.filter((o) => normOrderStatus(o) === 'PAID').length)
 const totalRevenue = computed(() => {
   return orders.value
-    .filter((o) => o.status === 'PAID' || o.status === 'COMPLETED')
+    .filter((o) => isPaidLikeStatus(normOrderStatus(o)))
     .reduce((sum, o) => sum + Number(o.payAmount || 0), 0)
 })
 
-// 最近订单
-const recentOrders = computed(() => {
-  return orders.value
-    .filter((o) => o.status === 'PAID')
-    .slice(0, 3)
-    .map((o) => ({
+/**
+ * 右侧面板：优先展示待发货；若无则展示最近订单，避免有单却空白。
+ */
+const shipmentPanelRows = computed(() => {
+  const list = Array.isArray(orders.value) ? [...orders.value] : []
+  const paid = list.filter((o) => normOrderStatus(o) === 'PAID')
+  const pick = paid.length
+    ? paid
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .slice(0, 5)
+    : list
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .slice(0, 5)
+  return pick.map((o) => {
+    const st = normOrderStatus(o)
+    return {
       id: o.orderNo,
-      status: o.status === 'PAID' ? '待发货' : o.status === 'SHIPPED' ? '已发货' : '已完成',
-      desc: `订单金额: ¥${o.payAmount}`,
-      statusType: o.status,
-    }))
+      status: orderStatusLabel(st),
+      desc: `订单金额: ¥${o.payAmount ?? '0.00'}`,
+      statusType: st,
+    }
+  })
 })
 
-// 库存预警商品
-const lowStockProducts = computed(() => {
-  return products.value
-    .filter((p) => p.stock < 50)
-    .slice(0, 3)
-    .map((p) => ({
-      name: p.title,
-      sku: `SKU-${p.productId}`,
-      stock: p.stock,
-      status: p.stock < 10 ? '紧急' : p.stock < 30 ? '警告' : '正常',
-      price: `¥${p.price}`,
-      action: p.stock < 10 ? '立即补货' : '关注库存',
-    }))
+const shipmentPanelMode = computed(() => {
+  const list = Array.isArray(orders.value) ? orders.value : []
+  return list.some((o) => normOrderStatus(o) === 'PAID') ? 'pending' : 'recent'
+})
+
+/** 近 6 段滚动窗口（每段 7 天）的实付汇总，用于趋势折线（含买家已付款起的有效订单）。 */
+const weeklySalesBuckets = computed(() => {
+  const MS_WEEK = 7 * 24 * 60 * 60 * 1000
+  const now = Date.now()
+  /** @type {number[]} */
+  const buckets = Array(6).fill(0)
+  for (let i = 0; i < 6; i++) {
+    const weekEnd = now - i * MS_WEEK
+    const weekStart = weekEnd - MS_WEEK
+    const idx = 5 - i
+    for (const o of orders.value) {
+      if (!isPaidLikeStatus(normOrderStatus(o))) continue
+      const t = new Date(o.createdAt || 0).getTime()
+      if (!Number.isFinite(t) || t < weekStart || t >= weekEnd) continue
+      buckets[idx] += Number(o.payAmount || 0)
+    }
+  }
+  return buckets
+})
+
+const salesChartMeta = computed(() => {
+  const values = weeklySalesBuckets.value
+  const tRaw = String(salesTargetWeeklyStr.value || '').trim()
+  const weeklyTargetNum = tRaw === '' ? NaN : Number(tRaw)
+  const hasTarget = Number.isFinite(weeklyTargetNum) && weeklyTargetNum > 0
+  const maxV = Math.max(...values, hasTarget ? weeklyTargetNum : 0, 1)
+  const W = 680
+  const H = 250
+  const padTop = 20
+  const padBottom = 0
+  const padX = 36
+  const innerH = H - padTop - padBottom
+  const n = values.length
+  const innerW = W - 2 * padX
+  const step = n > 1 ? innerW / (n - 1) : 0
+  const xAt = (i) => padX + i * step
+  /**
+   * @param {number[]} arr
+   */
+  const toPoints = (arr) =>
+    arr
+      .map((v, i) => {
+        const x = xAt(i)
+        const ratio = maxV > 0 ? v / maxV : 0
+        const y = padTop + innerH * (1 - ratio)
+        return `${x},${y}`
+      })
+      .join(' ')
+  const targetSeries = hasTarget ? Array(6).fill(weeklyTargetNum) : []
+  return {
+    pointsActual: toPoints(values),
+    pointsTarget: hasTarget ? toPoints(targetSeries) : '',
+    hasTarget,
+    weeklyTargetDisplay: hasTarget ? weeklyTargetNum.toFixed(2) : '',
+    maxV,
+    weekXs: values.map((_, i) => xAt(i)),
+  }
+})
+
+const weekLabels = ['前5周', '前4周', '前3周', '前2周', '上周', '本周']
+
+/**
+ * 库存：优先真正低库存；否则展示库存最低的几件，避免表格长期空白。
+ */
+const inventoryWatchRows = computed(() => {
+  const plist = Array.isArray(products.value) ? products.value : []
+  const danger = plist
+    .filter((p) => stockNum(p) < 50)
+    .sort((a, b) => stockNum(a) - stockNum(b))
+    .slice(0, 8)
+  if (danger.length) {
+    return danger.map((p) => {
+      const s = stockNum(p)
+      return {
+        productId: p.productId,
+        name: p.title,
+        stock: s,
+        price: `¥${p.price}`,
+        action: s < 10 ? '立即补货' : '关注库存',
+      }
+    })
+  }
+  return [...plist]
+    .sort((a, b) => stockNum(a) - stockNum(b))
+    .slice(0, 5)
+    .map((p) => {
+      const s = stockNum(p)
+      return {
+        productId: p.productId,
+        name: p.title,
+        stock: s,
+        price: `¥${p.price}`,
+        action: '调整库存',
+      }
+    })
 })
 
 onMounted(async () => {
-  const [pRes, oRes] = await Promise.all([api.adminGetProducts(), api.adminGetOrders('')])
-  if (pRes.code === 200) products.value = pRes.data
-  if (oRes.code === 200) orders.value = oRes.data
+  dashboardError.value = ''
+  if (!merchantId.value) {
+    dashboardError.value = '请先登录商家账号'
+    return
+  }
+  loading.value = true
+  const [pRes, oRes, profRes] = await Promise.all([
+    api.merchantGetProducts(merchantId.value),
+    api.merchantGetOrders(merchantId.value, ''),
+    api.merchantGetProfile(merchantId.value),
+  ])
+  if (pRes.code === 200) products.value = pRes.data || []
+  else dashboardError.value = pRes.message || '商品数据加载失败'
+  if (oRes.code === 200) orders.value = oRes.data || []
+  else if (!dashboardError.value) dashboardError.value = oRes.message || '订单数据加载失败'
+  if (profRes.code === 200 && profRes.data) {
+    const tw = profRes.data.salesTargetWeekly
+    salesTargetWeeklyStr.value = tw != null && String(tw).trim() !== '' ? String(tw).trim() : ''
+  }
+  loading.value = false
 })
 </script>
 
@@ -54,11 +208,13 @@ onMounted(async () => {
   <div class="dashboard">
     <div class="dashboard-header">
       <h1>店铺运营总览</h1>
-      <span class="subtitle">商家数据中心</span>
+      <span class="subtitle">本店经营数据一览，实时掌握营收与订单动态</span>
     </div>
+    <div v-if="dashboardError" class="dashboard-error">{{ dashboardError }}</div>
+    <div v-else-if="loading" class="dashboard-loading">正在加载本店数据…</div>
 
     <!-- 数据卡片 -->
-    <div class="metrics-grid">
+    <div v-else class="metrics-grid">
       <div class="metric-card">
         <div class="metric-label">总营收</div>
         <div class="metric-value">¥{{ totalRevenue.toFixed(2) }}</div>
@@ -91,17 +247,27 @@ onMounted(async () => {
     </div>
 
     <!-- 主要内容区 -->
-    <div class="content-grid">
+    <div v-if="!dashboardError && !loading" class="content-grid">
       <!-- 销售趋势图 -->
       <div class="chart-section">
         <div class="section-header">
           <div>
             <h3>销售趋势分析</h3>
-            <p class="section-subtitle">近期销售数据与目标对比</p>
+            <p class="section-subtitle">
+              按最近 6 段「各 7 天」滚动窗口汇总本店买家已付款后的订单实付。
+              <template v-if="salesChartMeta.hasTarget">
+                橙色虚线为商家资料中的「每周销售额目标」：¥{{ salesChartMeta.weeklyTargetDisplay }}（各段横向对比）。
+              </template>
+              <template v-else>
+                尚未设置目标线，请在
+                <a href="#" class="chart-inline-link" @click.prevent="router.push('/merchant/profile')">商家资料</a>
+                中填写「每周销售额目标」并保存。
+              </template>
+            </p>
           </div>
           <div class="legend">
             <span class="legend-item"><span class="dot current"></span> 实际</span>
-            <span class="legend-item"><span class="dot target"></span> 目标</span>
+            <span v-if="salesChartMeta.hasTarget" class="legend-item"><span class="dot target"></span> 目标</span>
           </div>
         </div>
         <div class="chart-container">
@@ -113,7 +279,8 @@ onMounted(async () => {
             <line x1="0" y1="50" x2="680" y2="50" stroke="#e5e7eb" stroke-width="1" />
 
             <polyline
-              points="0,220 113,200 227,180 340,165 453,155 567,148 680,145"
+              v-if="salesChartMeta.hasTarget"
+              :points="salesChartMeta.pointsTarget"
               fill="none"
               stroke="#d97706"
               stroke-width="2"
@@ -121,26 +288,38 @@ onMounted(async () => {
             />
 
             <polyline
-              points="0,240 113,225 227,205 340,180 453,145 567,100 680,60"
+              :points="salesChartMeta.pointsActual"
               fill="none"
               stroke="#0f172a"
               stroke-width="2.5"
             />
 
-            <text x="0" y="280" font-size="11" fill="#6b7280">第1周</text>
-            <text x="113" y="280" font-size="11" fill="#6b7280">第2周</text>
-            <text x="227" y="280" font-size="11" fill="#6b7280">第3周</text>
-            <text x="340" y="280" font-size="11" fill="#6b7280">第4周</text>
-            <text x="453" y="280" font-size="11" fill="#6b7280">第5周</text>
-            <text x="567" y="280" font-size="11" fill="#6b7280">第6周</text>
+            <text
+              v-for="(lx, i) in salesChartMeta.weekXs"
+              :key="i"
+              :x="lx"
+              y="280"
+              text-anchor="middle"
+              font-size="11"
+              fill="#6b7280"
+            >
+              {{ weekLabels[i] || '' }}
+            </text>
           </svg>
         </div>
       </div>
 
       <!-- 待处理订单面板 -->
       <div class="shipments-panel">
+        <p class="panel-lead">
+          {{
+            shipmentPanelMode === 'pending'
+              ? '以下订单等待发货，请及时处理'
+              : '当前无待发货订单，展示最近订单便于跟进'
+          }}
+        </p>
         <div class="panel-header">
-          <h3>待处理订单</h3>
+          <h3>{{ shipmentPanelMode === 'pending' ? '待发货' : '最近订单' }}</h3>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="1" y="3" width="15" height="13"></rect>
             <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
@@ -149,8 +328,9 @@ onMounted(async () => {
           </svg>
         </div>
         <div class="shipments-list">
-          <div v-for="order in recentOrders" :key="order.id" class="shipment-item">
-            <div class="shipment-icon" :class="order.statusType.toLowerCase()">
+          <div v-if="shipmentPanelRows.length === 0" class="shipment-empty">暂无相关订单</div>
+          <div v-for="order in shipmentPanelRows" :key="order.id" class="shipment-item">
+            <div class="shipment-icon" :class="String(order.statusType || 'unknown').toLowerCase()">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9 11l3 3L22 4" />
                 <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
@@ -167,11 +347,13 @@ onMounted(async () => {
     </div>
 
     <!-- 库存状态表格 -->
-    <div class="inventory-section">
+    <div v-if="!dashboardError && !loading" class="inventory-section">
       <div class="section-header">
         <div>
           <h3>库存预警</h3>
-          <p class="section-subtitle">实时监控低库存商品</p>
+          <p class="section-subtitle">
+            库存低于 50 件优先展示；均高于该阈值时按库存从低到高列出前几条便于补货
+          </p>
         </div>
         <div class="section-actions">
           <button class="btn-secondary" @click="router.push('/merchant/products')">商品管理</button>
@@ -179,41 +361,30 @@ onMounted(async () => {
         </div>
       </div>
 
-      <table class="inventory-table" v-if="lowStockProducts.length > 0">
+      <table class="inventory-table" v-if="inventoryWatchRows.length > 0">
         <thead>
           <tr>
             <th>商品名称</th>
-            <th>SKU编码</th>
             <th>库存数量</th>
-            <th>状态</th>
             <th>价格</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in lowStockProducts" :key="item.sku">
+          <tr v-for="item in inventoryWatchRows" :key="item.productId">
             <td>
               <div class="product-cell">
                 <div class="product-icon"></div>
                 <span>{{ item.name }}</span>
               </div>
             </td>
-            <td class="sku-code">{{ item.sku }}</td>
             <td class="stock-level">{{ item.stock }} 件</td>
-            <td>
-              <span
-                class="status-badge"
-                :class="item.status === '紧急' ? 'critical' : item.status === '警告' ? 'warning' : 'optimal'"
-              >
-                {{ item.status }}
-              </span>
-            </td>
             <td class="demand">{{ item.price }}</td>
             <td>
               <button
                 class="action-btn"
-                :class="item.status === '紧急' ? 'critical' : 'optimal'"
-                @click="router.push(`/merchant/product/${item.sku.split('-')[1]}/edit`)"
+                :class="Number(item.stock) < 10 ? 'critical' : 'optimal'"
+                @click="router.push(`/merchant/product/${item.productId}/edit`)"
               >
                 {{ item.action }}
               </button>
@@ -223,10 +394,10 @@ onMounted(async () => {
       </table>
 
       <div v-else class="empty-state">
-        <p>暂无库存预警商品</p>
+        <p>暂无商品数据，请先在商品管理中上架</p>
       </div>
 
-      <div class="table-footer" v-if="lowStockProducts.length > 0">
+      <div class="table-footer" v-if="inventoryWatchRows.length > 0">
         <a href="#" class="view-all-link" @click.prevent="router.push('/merchant/products')">
           查看全部 {{ products.length }} 个商品
         </a>
@@ -240,6 +411,23 @@ onMounted(async () => {
   background: #f7f8fa;
   min-height: 100vh;
   padding: 24px;
+}
+
+.dashboard-error {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.dashboard-loading {
+  margin: 48px 0;
+  text-align: center;
+  font-size: 14px;
+  color: #64748b;
 }
 
 .dashboard-header {
@@ -339,6 +527,17 @@ onMounted(async () => {
   margin: 0;
 }
 
+.chart-inline-link {
+  color: #0f172a;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.chart-inline-link:hover {
+  color: #d97706;
+}
+
 .legend {
   display: flex;
   gap: 16px;
@@ -393,6 +592,13 @@ onMounted(async () => {
   margin-bottom: 20px;
 }
 
+.panel-lead {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
 .panel-header h3 {
   font-size: 13px;
   font-weight: 700;
@@ -432,6 +638,37 @@ onMounted(async () => {
 .shipment-icon.paid {
   background: #f59e0b;
   color: #0f172a;
+}
+
+.shipment-icon.shipped {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.shipment-icon.completed {
+  background: #22c55e;
+  color: #0f172a;
+}
+
+.shipment-icon.created {
+  background: #a78bfa;
+  color: #0f172a;
+}
+
+.shipment-icon.cancelled,
+.shipment-icon.unknown {
+  background: #475569;
+  color: #e2e8f0;
+}
+
+.shipment-empty {
+  padding: 20px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+  background: #0f172a;
+  border-radius: 6px;
+  margin-bottom: 12px;
 }
 
 .shipment-info {
@@ -553,38 +790,8 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-.sku-code {
-  font-family: 'Courier New', monospace;
-  color: #64748b;
-  font-size: 12px;
-}
-
 .stock-level {
   font-weight: 600;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-}
-
-.status-badge.optimal {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.status-badge.warning {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-badge.critical {
-  background: #fee2e2;
-  color: #991b1b;
 }
 
 .demand {

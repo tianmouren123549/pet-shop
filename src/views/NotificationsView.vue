@@ -2,14 +2,17 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../utils/request'
+import { showAppMessage } from '../utils/appMessage'
 import PaginationBar from '../components/PaginationBar.vue'
+import { dismissNoticeBadgeForCurrentUnread } from '../utils/noticeBadgeAck'
 
 const router = useRouter()
 const userId = ref(Number(localStorage.getItem('userId') || 0))
 const list = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
-const onlyUnread = ref(true)
+/** 默认展示全部通知；勾选后仅看未读 */
+const onlyUnread = ref(false)
 const page = ref(1)
 const pageSize = ref(8)
 
@@ -44,6 +47,7 @@ async function load() {
   const res = await api.userGetNotifications(userId.value)
   if (res.code === 200) {
     list.value = res.data || []
+    dismissNoticeBadgeForCurrentUnread('user', userId.value, list.value)
   } else {
     errorMsg.value = res.message || '加载失败'
   }
@@ -55,18 +59,10 @@ async function markRead(item) {
   const res = await api.userMarkNotificationRead(userId.value, item.noticeId)
   if (res.code === 200) {
     await load()
+    window.dispatchEvent(new Event('petshop-notice-updated'))
   } else {
-    alert(res.message || '操作失败')
+    showAppMessage(res.message || '操作失败', '提示')
   }
-}
-
-async function markAllReadOnEnter() {
-  const arr = Array.isArray(list.value) ? list.value : []
-  const unread = arr.filter((n) => Number(n.readStatus) !== 1 && Number(n.noticeId || 0) > 0)
-  if (unread.length === 0) return
-  await Promise.all(unread.map((n) => api.userMarkNotificationRead(userId.value, n.noticeId)))
-  await load()
-  window.dispatchEvent(new Event('petshop-notice-updated'))
 }
 
 function goProduct(item) {
@@ -77,12 +73,11 @@ function goProduct(item) {
 
 onMounted(async () => {
   if (!userId.value) {
-    alert('请先登录')
+    showAppMessage('请先登录', '提示')
     router.push('/login')
     return
   }
   await load()
-  await markAllReadOnEnter()
 })
 </script>
 
@@ -90,7 +85,7 @@ onMounted(async () => {
   <div class="pw-page">
     <section class="pw-hero">
       <h1 class="pw-title">我的通知</h1>
-      <p class="pw-lead">接收到货提醒、订单与售后相关通知（Mock 演示）。</p>
+      <p class="pw-lead">接收到货提醒、订单与售后相关通知。</p>
     </section>
 
     <section class="pw-section">

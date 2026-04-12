@@ -1,4 +1,4 @@
-// 模拟商品数据
+// 离线开发用示例商品（仅 USE_MOCK 时使用）
 export const mockProducts = [
   {
     productId: 1,
@@ -217,10 +217,370 @@ export const mockProducts = [
         '产地': '中国'
       }
     }
+  },
+  {
+    productId: 11,
+    title: '纽顿T28鲑鱼鳟鱼配方小型犬粮 6kg 加拿大进口',
+    categoryId: 10,
+    categoryName: '进口狗粮',
+    brandId: 6,
+    brandName: '纽顿',
+    price: 525.0,
+    stock: 80,
+    status: 1,
+    detail: {
+      description: '加拿大原装进口纽顿无谷低升糖系列，鲑鱼与鳟鱼配方，适合小型犬与玩赏犬。',
+      specJson: { 产地: '加拿大', 净含量: '6kg', 配方: '鲑鱼&鳟鱼', 适用: '小型犬' }
+    }
+  },
+  {
+    productId: 12,
+    title: 'Instinct百利生鲜系列无谷鸡肉全犬粮 9.5kg 美国进口',
+    categoryId: 10,
+    categoryName: '进口狗粮',
+    brandId: 7,
+    brandName: 'Instinct百利',
+    price: 1088.0,
+    stock: 35,
+    status: 1,
+    detail: {
+      description: '生鲜本能百利无谷鸡肉配方，高肉蛋白，添加冻干涂层，适口性佳。',
+      specJson: { 产地: '美国', 净含量: '9.5kg', 适用: '全犬' }
+    }
+  },
+  {
+    productId: 13,
+    title: '卡比四种肉配方全犬粮 44磅 美产',
+    categoryId: 10,
+    categoryName: '进口狗粮',
+    brandId: 15,
+    brandName: '卡比',
+    price: 1029.0,
+    stock: 42,
+    status: 1,
+    detail: {
+      description: '卡比四种肉配方，含鸡肉火鸡羊肉与鱼，人类可食级原料标准。',
+      specJson: { 产地: '美国', 规格: '44磅', 适用: '全犬' }
+    }
+  },
+  {
+    productId: 14,
+    title: '伯纳天纯羊肉燕麦蔓越莓中大型成犬粮 15kg',
+    categoryId: 11,
+    categoryName: '国产狗粮',
+    brandId: 13,
+    brandName: '伯纳天纯',
+    price: 466.0,
+    stock: 95,
+    status: 1,
+    detail: {
+      description: '伯纳天纯添加羊肉燕麦蔓越莓，健胃促吸收，蓬松亮毛，健骨护关节。',
+      specJson: { 净含量: '15kg', 适用: '中大型成犬', 产地: '中国' }
+    }
+  },
+  {
+    productId: 15,
+    title: '麦富迪牛肉双拼通用型成犬粮 10kg',
+    categoryId: 11,
+    categoryName: '国产狗粮',
+    brandId: 8,
+    brandName: '麦富迪',
+    price: 335.0,
+    stock: 220,
+    status: 1,
+    detail: {
+      description: '麦富迪牛肉双拼粮，真牛肉粒添加，低温烘烤，通用型成犬。',
+      specJson: { 净含量: '10kg', 牛肉粒: '20%', 产地: '中国' }
+    }
+  },
+  {
+    productId: 16,
+    title: '醇粹金标无麸系列大型成犬粮 15kg',
+    categoryId: 11,
+    categoryName: '国产狗粮',
+    brandId: 12,
+    brandName: '醇粹',
+    price: 489.0,
+    stock: 60,
+    status: 1,
+    detail: {
+      description: '醇粹金标无麸大型成犬粮，适合18月龄以上大型犬，均衡营养呵护关节。',
+      specJson: { 净含量: '15kg', 适用: '大型成犬', 产地: '中国' }
+    }
+  },
+  {
+    productId: 17,
+    title: '比瑞吉冻干生骨肉全价犬粮 鸭肉梨味 1.5kg',
+    categoryId: 12,
+    categoryName: '冻干狗粮',
+    brandId: 3,
+    brandName: '比瑞吉',
+    price: 138.0,
+    stock: 150,
+    status: 1,
+    detail: {
+      description: '比瑞吉冻干生骨肉全价犬粮，鸭肉梨味，添加冻干颗粒，呵护肠道。',
+      specJson: { 净含量: '1.5kg', 口味: '鸭肉梨', 产地: '中国' }
+    }
+  },
+  {
+    productId: 18,
+    title: '纽顿鸡肉配方进口成猫粮 5.4kg',
+    categoryId: 13,
+    categoryName: '进口猫粮',
+    brandId: 6,
+    brandName: '纽顿',
+    price: 398.0,
+    stock: 70,
+    status: 1,
+    detail: {
+      description: '纽顿鸡肉配方进口猫粮，低敏易消化，适合成猫日常饲喂。',
+      specJson: { 净含量: '5.4kg', 产地: '加拿大', 适用: '成猫' }
+    }
+  },
+  {
+    productId: 19,
+    title: '渴望鸡肉配方全猫粮 5.4kg 加拿大进口',
+    categoryId: 13,
+    categoryName: '进口猫粮',
+    brandId: 4,
+    brandName: '渴望',
+    price: 588.0,
+    stock: 55,
+    status: 1,
+    detail: {
+      description: '渴望鸡肉配方全猫粮，高鲜肉含量，满足猫咪肉食天性。',
+      specJson: { 净含量: '5.4kg', 产地: '加拿大', 适用: '成猫' }
+    }
+  },
+  {
+    productId: 20,
+    title: '卫仕膳食平衡全价成猫粮 10kg',
+    categoryId: 14,
+    categoryName: '国产猫粮',
+    brandId: 9,
+    brandName: '卫仕',
+    price: 268.0,
+    stock: 180,
+    status: 1,
+    detail: {
+      description: '卫仕膳食平衡全价成猫粮，营养配比均衡，适合室内饲养猫。',
+      specJson: { 净含量: '10kg', 产地: '中国', 适用: '成猫' }
+    }
+  },
+  {
+    productId: 21,
+    title: '麦富迪冻干双拼幼猫粮 2kg',
+    categoryId: 14,
+    categoryName: '国产猫粮',
+    brandId: 8,
+    brandName: '麦富迪',
+    price: 128.0,
+    stock: 200,
+    status: 1,
+    detail: {
+      description: '麦富迪冻干双拼幼猫粮，颗粒适合幼猫，支持生长发育。',
+      specJson: { 净含量: '2kg', 适用: '幼猫', 产地: '中国' }
+    }
+  },
+  {
+    productId: 22,
+    title: '冻干鸡肉粒猫狗通用零食桶 500g',
+    categoryId: 15,
+    categoryName: '冻干猫粮',
+    brandId: 8,
+    brandName: '麦富迪',
+    price: 89.0,
+    stock: 300,
+    status: 1,
+    detail: {
+      description: '冻干鸡肉粒零食桶，猫狗通用，可作训练奖励或拌粮。',
+      specJson: { 净含量: '500g', 类型: '冻干零食', 产地: '中国' }
+    }
+  },
+  {
+    productId: 23,
+    title: '路斯奶酪牛肉棒狗零食 200g',
+    categoryId: 16,
+    categoryName: '零食',
+    brandId: 17,
+    brandName: '路斯',
+    price: 18.9,
+    stock: 400,
+    status: 1,
+    detail: {
+      description: '路斯奶酪牛肉棒，干燥有嚼劲，磨牙解馋，训练奖励。',
+      specJson: { 净含量: '200g', 类型: '狗零食', 产地: '中国' }
+    }
+  },
+  {
+    productId: 24,
+    title: '顽皮醇香牛肉棒狗零食 400g',
+    categoryId: 16,
+    categoryName: '零食',
+    brandId: 18,
+    brandName: '顽皮',
+    price: 29.9,
+    stock: 350,
+    status: 1,
+    detail: {
+      description: '顽皮醇香牛肉棒，多道工序加工，低温风干，醇香美味。',
+      specJson: { 净含量: '400g', 类型: '狗零食', 产地: '中国' }
+    }
+  },
+  {
+    productId: 25,
+    title: '拜耳拜宠清犬用体内驱虫药 6片装',
+    categoryId: 17,
+    categoryName: '医疗保健',
+    brandId: 10,
+    brandName: '拜耳',
+    price: 109.0,
+    stock: 120,
+    status: 1,
+    detail: {
+      description: '拜耳拜宠清犬用体内驱虫，正规兽药批文，用于2kg以上宠物犬。',
+      specJson: { 规格: '6片/盒', 类型: '体内驱虫', 产地: '德国' }
+    }
+  },
+  {
+    productId: 26,
+    title: '犬心保驱虫牛肉块 S号 6粒/盒',
+    categoryId: 17,
+    categoryName: '医疗保健',
+    brandId: 16,
+    brandName: '犬心保',
+    price: 129.0,
+    stock: 90,
+    status: 1,
+    detail: {
+      description: '犬心保牛肉块驱虫，每月一次，驱除蛔虫心丝虫钩虫，牛肉粒易喂食。',
+      specJson: { 规格: 'S号 6粒', 适用体重: '11kg以下', 产地: '美国' }
+    }
+  },
+  {
+    productId: 27,
+    title: '卫仕犬猫通用营养膏 120g',
+    categoryId: 18,
+    categoryName: '营养保健',
+    brandId: 9,
+    brandName: '卫仕',
+    price: 59.0,
+    stock: 260,
+    status: 1,
+    detail: {
+      description: '卫仕营养膏，犬猫通用，产后病后营养补充，能量补给。',
+      specJson: { 净含量: '120g', 类型: '营养膏', 产地: '中国' }
+    }
+  },
+  {
+    productId: 28,
+    title: '红狗犬用营养膏 120g',
+    categoryId: 18,
+    categoryName: '营养保健',
+    brandId: 20,
+    brandName: '红狗',
+    price: 45.0,
+    stock: 310,
+    status: 1,
+    detail: {
+      description: '红狗犬用营养膏，易消化高能量，适合体弱或术后恢复。',
+      specJson: { 净含量: '120g', 类型: '营养膏', 产地: '中国' }
+    }
+  },
+  {
+    productId: 29,
+    title: '小佩智能饮水机三代 1.35L',
+    categoryId: 19,
+    categoryName: '生活日用',
+    brandId: 11,
+    brandName: '小佩',
+    price: 298.0,
+    stock: 85,
+    status: 1,
+    detail: {
+      description: '小佩智能饮水机三代，四重净化，循环活水，防干烧保护。',
+      specJson: { 容量: '1.35L', 类型: '智能饮水', 产地: '中国' }
+    }
+  },
+  {
+    productId: 30,
+    title: '爱丽思密封储粮桶 MFS-10 大号约装10kg',
+    categoryId: 19,
+    categoryName: '生活日用',
+    brandId: 19,
+    brandName: '爱丽思',
+    price: 99.0,
+    stock: 140,
+    status: 1,
+    detail: {
+      description: '爱丽思密封储粮桶，可装约10kg干粮，送勺，内置干燥剂存储位。',
+      specJson: { 型号: 'MFS-10', 颜色: '绿盖', 产地: '中国' }
+    }
+  },
+  {
+    productId: 31,
+    title: '尼龙反光胸背带牵引套装 大型犬 L码',
+    categoryId: 20,
+    categoryName: '牵引出行',
+    brandId: null,
+    brandName: null,
+    price: 68.0,
+    stock: 175,
+    status: 1,
+    detail: {
+      description: '尼龙反光胸背带牵引套装，夜间反光条，分散拉力，适合大型犬。',
+      specJson: { 尺码: 'L', 类型: '胸背带+牵引绳', 产地: '中国' }
+    }
+  },
+  {
+    productId: 32,
+    title: '麦富迪冻干三文鱼全价犬粮 2kg 无谷',
+    categoryId: 12,
+    categoryName: '冻干狗粮',
+    brandId: 8,
+    brandName: '麦富迪',
+    price: 168.0,
+    stock: 110,
+    status: 1,
+    detail: {
+      description: '麦富迪冻干三文鱼全价犬粮，无谷配方，富含Omega-3，呵护皮肤与被毛。',
+      specJson: { 净含量: '2kg', 主要成分: '三文鱼', 产地: '中国' }
+    }
+  },
+  {
+    productId: 33,
+    title: '比瑞吉冻干鸡胸肉猫咪零食 200g',
+    categoryId: 15,
+    categoryName: '冻干猫粮',
+    brandId: 3,
+    brandName: '比瑞吉',
+    price: 45.0,
+    stock: 240,
+    status: 1,
+    detail: {
+      description: '比瑞吉冻干鸡胸肉猫零食，单肉源低敏，复水可拌粮。',
+      specJson: { 净含量: '200g', 类型: '冻干猫零食', 产地: '中国' }
+    }
+  },
+  {
+    productId: 34,
+    title: '可伸缩尼龙牵引绳 5m 中型犬用',
+    categoryId: 20,
+    categoryName: '牵引出行',
+    brandId: null,
+    brandName: null,
+    price: 42.0,
+    stock: 320,
+    status: 1,
+    detail: {
+      description: '可伸缩尼龙牵引绳，5米绳长，带制动锁止，适合中型犬日常遛弯。',
+      specJson: { 长度: '5m', 类型: '伸缩牵引', 产地: '中国' }
+    }
   }
 ]
 
-// 模拟评论数据
+// 离线开发用示例评论
 export const mockReviews = {
   1: [
     {
@@ -362,20 +722,37 @@ export const mockReviews = {
   10: []
 }
 
-// 模拟分类数据
+// 离线开发用示例分类
 export const mockCategories = [
   { categoryId: 1, parentId: 0, name: '狗粮', path: '1' },
   { categoryId: 2, parentId: 0, name: '猫粮', path: '2' },
-  { categoryId: 3, parentId: 0, name: '宠物用品', path: '3' },
   { categoryId: 4, parentId: 1, name: '幼犬粮', path: '1/4' },
   { categoryId: 5, parentId: 1, name: '成犬粮', path: '1/5' },
   { categoryId: 6, parentId: 2, name: '幼猫粮', path: '2/6' },
   { categoryId: 7, parentId: 2, name: '成猫粮', path: '2/7' },
-  { categoryId: 8, parentId: 3, name: '玩具', path: '3/8' },
-  { categoryId: 9, parentId: 3, name: '清洁用品', path: '3/9' }
+  { categoryId: 21, parentId: 0, name: '宠物零食', path: '21' },
+  { categoryId: 22, parentId: 0, name: '宠物玩具', path: '22' },
+  { categoryId: 23, parentId: 0, name: '清洁护理', path: '23' },
+  { categoryId: 24, parentId: 0, name: '宠物医疗', path: '24' },
+  { categoryId: 25, parentId: 0, name: '宠物营养', path: '25' },
+  { categoryId: 26, parentId: 0, name: '生活日用', path: '26' },
+  { categoryId: 27, parentId: 0, name: '牵引出行', path: '27' },
+  { categoryId: 8, parentId: 22, name: '玩具', path: '22/8' },
+  { categoryId: 9, parentId: 23, name: '清洁用品', path: '23/9' },
+  { categoryId: 10, parentId: 1, name: '进口狗粮', path: '1/10' },
+  { categoryId: 11, parentId: 1, name: '国产狗粮', path: '1/11' },
+  { categoryId: 12, parentId: 1, name: '冻干狗粮', path: '1/12' },
+  { categoryId: 13, parentId: 2, name: '进口猫粮', path: '2/13' },
+  { categoryId: 14, parentId: 2, name: '国产猫粮', path: '2/14' },
+  { categoryId: 15, parentId: 2, name: '冻干猫粮', path: '2/15' },
+  { categoryId: 16, parentId: 21, name: '零食', path: '21/16' },
+  { categoryId: 17, parentId: 24, name: '医疗保健', path: '24/17' },
+  { categoryId: 18, parentId: 25, name: '营养保健', path: '25/18' },
+  { categoryId: 19, parentId: 26, name: '生活日用', path: '26/19' },
+  { categoryId: 20, parentId: 27, name: '牵引出行', path: '27/20' }
 ]
 
-// 模拟购物车数据
+// 离线开发用示例购物车
 export const mockCart = [
   { cartId: 1, userId: 1, productId: 1, quantity: 2 },
   { cartId: 2, userId: 1, productId: 8, quantity: 1 }

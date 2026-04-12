@@ -2,14 +2,17 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../../utils/request'
+import { showAppMessage } from '../../utils/appMessage'
 import PaginationBar from '../../components/PaginationBar.vue'
+import { dismissNoticeBadgeForCurrentUnread } from '../../utils/noticeBadgeAck'
 
 const router = useRouter()
 const merchantId = ref(Number(localStorage.getItem('adminId') || 0))
 const list = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
-const onlyUnread = ref(true)
+/** 默认展示全部通知；勾选后仅看未读 */
+const onlyUnread = ref(false)
 const page = ref(1)
 const pageSize = ref(8)
 
@@ -44,6 +47,7 @@ async function load() {
   const res = await api.merchantGetNotifications(merchantId.value)
   if (res.code === 200) {
     list.value = res.data || []
+    dismissNoticeBadgeForCurrentUnread('merchant', merchantId.value, list.value)
   } else {
     errorMsg.value = res.message || '加载失败'
   }
@@ -55,23 +59,9 @@ async function markRead(item) {
   const res = await api.merchantMarkNotificationRead(merchantId.value, item.noticeId)
   if (res.code === 200) {
     await load()
+    window.dispatchEvent(new Event('petshop-notice-updated'))
   } else {
-    alert(res.message || '操作失败')
-  }
-}
-
-async function markAllReadOnEnter() {
-  const arr = Array.isArray(list.value) ? list.value : []
-  const unread = arr.filter((n) => Number(n.readStatus) !== 1 && Number(n.noticeId || 0) > 0)
-  if (unread.length === 0) return
-  await Promise.all(unread.map((n) => api.merchantMarkNotificationRead(merchantId.value, n.noticeId)))
-  await load()
-  window.dispatchEvent(new Event('petshop-notice-updated'))
-}
-
-async function openNotice(item) {
-  if (Number(item?.readStatus) !== 1) {
-    await markRead(item)
+    showAppMessage(res.message || '操作失败', '提示')
   }
 }
 
@@ -83,12 +73,11 @@ function goEdit(item) {
 
 onMounted(async () => {
   if (!merchantId.value) {
-    alert('请先登录')
+    showAppMessage('请先登录', '提示')
     router.push('/admin-login')
     return
   }
   await load()
-  await markAllReadOnEnter()
 })
 </script>
 
@@ -96,7 +85,7 @@ onMounted(async () => {
   <div class="pw-page">
     <section class="pw-hero">
       <h1 class="pw-title">通知中心</h1>
-      <p class="pw-lead">接收平台补货提醒、用户催补货等消息（Mock 演示）。</p>
+      <p class="pw-lead">接收平台补货提醒、用户催补货等消息。</p>
     </section>
 
     <section class="pw-section">
@@ -118,10 +107,6 @@ onMounted(async () => {
           :key="n.noticeId"
           class="pw-item"
           :class="{ 'pw-item--unread': Number(n.readStatus) !== 1 }"
-          role="button"
-          tabindex="0"
-          @click="openNotice(n)"
-          @keyup.enter="openNotice(n)"
         >
           <div class="pw-item-main">
             <div class="pw-item-title-row">
@@ -135,7 +120,9 @@ onMounted(async () => {
             </div>
           </div>
           <div class="pw-item-actions">
-            <span v-if="Number(n.readStatus) !== 1" class="pw-read-tag">点击整条标记已读</span>
+            <button v-if="Number(n.readStatus) !== 1" type="button" class="pw-btn-ghost pw-btn-sm" @click="markRead(n)">
+              标记已读
+            </button>
             <span v-else class="pw-read-tag">已读</span>
           </div>
         </div>

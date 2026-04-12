@@ -1,11 +1,15 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../utils/request'
+import { showAppMessage } from '../utils/appMessage'
 import PaginationBar from '../components/PaginationBar.vue'
 
+const route = useRoute()
 const router = useRouter()
 const userId = ref(Number(localStorage.getItem('userId') || 0))
+/** 从购物车「一键结算全部」跳转后的说明条 */
+const bulkBannerText = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
 const orders = ref([])
@@ -40,7 +44,7 @@ function statusText(s) {
   return s === 'CREATED'
     ? '待支付'
     : s === 'PAID'
-      ? '已支付'
+      ? '待发货'
       : s === 'SHIPPED'
         ? '已发货'
         : s === 'COMPLETED'
@@ -65,26 +69,42 @@ async function loadOrders() {
 
 onMounted(async () => {
   if (!userId.value) {
-    alert('请先登录')
+    showAppMessage('请先登录', '提示')
     router.push('/login')
     return
   }
   await loadOrders()
+  const n = route.query.n
+  if (route.query.from === 'bulk-checkout' && n) {
+    bulkBannerText.value = `结算已完成。请在下方「我的订单」中查看刚生成的订单并完成支付。`
+    router.replace({ path: '/orders', query: {} })
+  }
 })
+
+function dismissBulkBanner() {
+  bulkBannerText.value = ''
+}
 </script>
 
 <template>
   <div class="pw-page orders-page">
     <section class="pw-hero orders-hero">
       <h1 class="pw-title">我的订单</h1>
-      <p class="pw-lead">查看下单记录与状态流转（Mock 模式可离线演示）</p>
+      <p class="pw-lead">查看下单记录与订单状态（待支付、待发货、已完成等）。</p>
     </section>
+
+    <div v-if="bulkBannerText" class="orders-bulk-banner" role="status">
+      <span class="orders-bulk-banner-text">{{ bulkBannerText }}</span>
+      <button type="button" class="orders-bulk-dismiss pw-btn-ghost pw-btn-sm" @click="dismissBulkBanner">
+        知道了
+      </button>
+    </div>
 
     <section class="pw-section orders-tabs">
       <div class="pw-toolbar pw-toolbar--tight">
         <button type="button" class="tab-btn" :class="{ active: tab === 'ALL' }" @click="tab = 'ALL'">全部</button>
         <button type="button" class="tab-btn" :class="{ active: tab === 'CREATED' }" @click="tab = 'CREATED'">待支付</button>
-        <button type="button" class="tab-btn" :class="{ active: tab === 'PAID' }" @click="tab = 'PAID'">已支付</button>
+        <button type="button" class="tab-btn" :class="{ active: tab === 'PAID' }" @click="tab = 'PAID'">待发货</button>
         <button type="button" class="tab-btn" :class="{ active: tab === 'SHIPPED' }" @click="tab = 'SHIPPED'">已发货</button>
         <button type="button" class="tab-btn" :class="{ active: tab === 'COMPLETED' }" @click="tab = 'COMPLETED'">已完成</button>
         <button type="button" class="tab-btn" :class="{ active: tab === 'CANCELLED' }" @click="tab = 'CANCELLED'">已取消</button>
@@ -136,6 +156,24 @@ onMounted(async () => {
 <style scoped>
 .orders-page { width: 100%; margin: 0 auto; }
 .orders-hero { margin-bottom: 14px; }
+
+.orders-bulk-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  background: #e8f4ff;
+  border: 1px solid #91caff;
+  border-radius: 4px;
+  color: #0958d9;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.orders-bulk-banner-text { flex: 1; min-width: 200px; font-weight: 600; }
+.orders-bulk-dismiss { flex-shrink: 0; }
 
 .orders-tabs { padding: 12px 12px; }
 .orders-tabs-spacer { flex: 1; }

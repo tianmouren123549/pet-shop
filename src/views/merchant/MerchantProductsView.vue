@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../../utils/request'
+import { showAppMessage } from '../../utils/appMessage'
 import PaginationBar from '../../components/PaginationBar.vue'
 
 const products = ref([])
@@ -16,6 +17,9 @@ const merchantId = ref(Number(localStorage.getItem('adminId') || 0))
 const editing = ref({})
 const page = ref(1)
 const pageSize = ref(10)
+/** 排序：'' | 'price' | 'stock' */
+const sortKey = ref('')
+const sortDir = ref('asc')
 
 function goCreateProduct() {
   router.push('/merchant/product/create')
@@ -47,7 +51,7 @@ async function toggleStatus(item) {
   if (res.code === 200) {
     await loadProducts()
   } else {
-    alert(res.message || '操作失败')
+    showAppMessage(res.message || '操作失败')
   }
 }
 
@@ -62,12 +66,12 @@ async function saveRow(item) {
   if (!row) return
   const p = parseNonNegativeNumber(row.price)
   if (p === null) {
-    alert('价格必须为非负数')
+    showAppMessage('价格必须为非负数')
     return
   }
   const s = parseNonNegativeNumber(row.stock)
   if (s === null) {
-    alert('库存必须为非负数')
+    showAppMessage('库存必须为非负数')
     return
   }
   row.saving = true
@@ -76,7 +80,7 @@ async function saveRow(item) {
   if (res.code === 200) {
     await loadProducts()
   } else {
-    alert(res.message || '保存失败')
+    showAppMessage(res.message || '保存失败')
   }
 }
 
@@ -104,6 +108,47 @@ const filteredProducts = computed(() => {
   })
 })
 
+function sortPriceValue(p) {
+  const row = editing.value?.[p.productId]
+  const raw = row?.price
+  const n =
+    raw != null && String(raw).trim() !== '' ? Number(raw) : Number(p.price)
+  return Number.isFinite(n) ? n : 0
+}
+
+function sortStockValue(p) {
+  const row = editing.value?.[p.productId]
+  const raw = row?.stock
+  const n =
+    raw != null && String(raw).trim() !== '' ? Number(raw) : Number(p.stock)
+  return Number.isFinite(n) ? n : 0
+}
+
+function toggleSort(key) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortKey.value = key
+    sortDir.value = 'asc'
+  }
+  page.value = 1
+}
+
+const sortedProducts = computed(() => {
+  const list = [...(Array.isArray(filteredProducts.value) ? filteredProducts.value : [])]
+  const key = sortKey.value
+  if (!key) return list
+  const mul = sortDir.value === 'desc' ? -1 : 1
+  const val = key === 'price' ? sortPriceValue : sortStockValue
+  list.sort((a, b) => {
+    const va = val(a)
+    const vb = val(b)
+    if (va !== vb) return va < vb ? -mul : mul
+    return (Number(a.productId) || 0) - (Number(b.productId) || 0)
+  })
+  return list
+})
+
 function runSearch() {
   appliedKeyword.value = keyword.value
   page.value = 1
@@ -114,6 +159,8 @@ function resetFilters() {
   appliedKeyword.value = ''
   statusFilter.value = ''
   categoryFilter.value = ''
+  sortKey.value = ''
+  sortDir.value = 'asc'
   page.value = 1
 }
 
@@ -121,9 +168,9 @@ watch([statusFilter, categoryFilter], () => {
   page.value = 1
 })
 
-const total = computed(() => (Array.isArray(filteredProducts.value) ? filteredProducts.value.length : 0))
+const total = computed(() => (Array.isArray(sortedProducts.value) ? sortedProducts.value.length : 0))
 const pagedProducts = computed(() => {
-  const list = Array.isArray(filteredProducts.value) ? filteredProducts.value : []
+  const list = Array.isArray(sortedProducts.value) ? sortedProducts.value : []
   const p = Math.max(1, Number(page.value || 1))
   const ps = Math.max(1, Number(pageSize.value || 1))
   const start = (p - 1) * ps
@@ -142,7 +189,7 @@ onMounted(loadProducts)
   <div class="merchant-page">
     <h2>我的商品管理</h2>
     <p class="desc">
-      当前商家ID：{{ merchantId || '-' }}；可维护价格、库存与上下架状态（Mock 模式演示）。
+      当前商家ID：{{ merchantId || '-' }}；可维护价格、库存与上下架状态。
     </p>
 
     <div class="toolbar">
@@ -174,7 +221,7 @@ onMounted(loadProducts)
       <p class="empty-title">暂无商品</p>
       <p class="empty-hint">点击上方“上架新商品”创建第一件商品。</p>
     </div>
-    <div v-else-if="filteredProducts.length === 0" class="empty">
+    <div v-else-if="sortedProducts.length === 0" class="empty">
       <p class="empty-title">没有符合筛选条件的商品</p>
       <p class="empty-hint">请调整筛选条件后重试。</p>
     </div>
@@ -183,8 +230,22 @@ onMounted(loadProducts)
         <tr>
           <th>ID</th>
           <th>名称</th>
-          <th>价格</th>
-          <th>库存</th>
+          <th>
+            <button type="button" class="sort-th" @click="toggleSort('price')">
+              价格
+              <span v-if="sortKey === 'price'" class="sort-ind" aria-hidden="true">{{
+                sortDir === 'asc' ? '↑' : '↓'
+              }}</span>
+            </button>
+          </th>
+          <th>
+            <button type="button" class="sort-th" @click="toggleSort('stock')">
+              库存
+              <span v-if="sortKey === 'stock'" class="sort-ind" aria-hidden="true">{{
+                sortDir === 'asc' ? '↑' : '↓'
+              }}</span>
+            </button>
+          </th>
           <th>状态</th>
           <th>操作</th>
         </tr>
@@ -347,6 +408,32 @@ h2 {
   font-size: 11px;
   color: #5f6d80;
   letter-spacing: 0.6px;
+}
+.sort-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: #3d4d63;
+  cursor: pointer;
+  text-transform: none;
+}
+.sort-th:hover {
+  color: #0b1630;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sort-ind {
+  font-size: 12px;
+  color: #0b1630;
+  font-weight: 900;
 }
 .action-btn.primary {
   border-color: #0b1630;

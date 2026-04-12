@@ -1,9 +1,10 @@
 <script setup>
 import { onMounted, ref, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../utils/request'
 
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const sending = ref(false)
 const errorMsg = ref('')
@@ -36,13 +37,14 @@ async function scrollBottom() {
 
 async function loadMessages() {
   if (!sessionId.value) return
-  const res = await api.userGetSupportMessages(sessionId.value)
+  const res = await api.userGetSupportMessages(sessionId.value, userId())
   if (res.code !== 200) {
     errorMsg.value = res.message || '消息加载失败'
     return
   }
   messages.value = Array.isArray(res.data) ? res.data : []
   await scrollBottom()
+  window.dispatchEvent(new CustomEvent('petshop-chat-unread-updated'))
 }
 
 async function initSession() {
@@ -51,18 +53,21 @@ async function initSession() {
   const uid = userId()
   if (!uid) {
     loading.value = false
-    errorMsg.value = '请先登录后再联系客服'
+    errorMsg.value = '请先登录后再联系商家'
     return
   }
   const merchantId = Number(route.query.merchantId || 0)
+  if (!merchantId) {
+    loading.value = false
+    router.replace('/merchant-contact')
+    return
+  }
   const orderId = Number(route.query.orderId || 0)
-  const res = merchantId
-    ? await api.userGetMerchantSession({
-        userId: uid,
-        merchantId,
-        orderId: orderId || null,
-      })
-    : await api.userGetSupportSession(uid)
+  const res = await api.userGetMerchantSession({
+    userId: uid,
+    merchantId,
+    orderId: orderId || null,
+  })
   loading.value = false
   if (res.code !== 200) {
     errorMsg.value = res.message || '会话创建失败'
@@ -100,7 +105,7 @@ onMounted(initSession)
 <template>
   <div class="pw-page">
     <section class="pw-hero">
-      <h1 class="pw-title">{{ route.query.merchantId ? `联系商家：${merchantName}` : '联系客服' }}</h1>
+      <h1 class="pw-title">联系商家：{{ merchantName }}</h1>
       <p class="pw-lead">
         {{
           route.query.orderId
@@ -120,7 +125,7 @@ onMounted(initSession)
       <div ref="listRef" class="pw-msg-list">
         <div v-if="messages.length === 0" class="pw-empty-inner">暂无消息，开始对话吧。</div>
         <div v-for="msg in messages" :key="msg.messageId" class="pw-msg-row" :class="{ mine: isMine(msg) }">
-          <div class="pw-msg-sender">{{ isMine(msg) ? '我' : route.query.merchantId ? '商家' : '客服' }}</div>
+          <div class="pw-msg-sender">{{ isMine(msg) ? '我' : '商家' }}</div>
           <div class="pw-bubble">{{ msg.content }}</div>
           <div class="pw-msg-time">{{ fmtTime(msg.createdAt) }}</div>
         </div>

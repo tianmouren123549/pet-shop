@@ -2,29 +2,47 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../utils/request'
+import { showAppMessage } from '../utils/appMessage'
 
 const router = useRouter()
 const mode = ref('login') // login | register
 const loginRole = ref('user') // user | merchant
+/** 注册页：用户注册 | 商家注册 */
+const registerRole = ref('user')
+/** 用户登录 / 用户注册：登录邮箱 */
+const userEmail = ref('')
+/** 用户注册：手机号选填 */
+const userPhone = ref('')
+/** 商家注册：店铺联系电话 */
 const phone = ref('')
 const password = ref('')
 const nickname = ref('')
 const adminUsername = ref('')
+const shopName = ref('')
+const contactName = ref('')
+/** 商家注册：联系邮箱（可选） */
 const email = ref('')
 const errorMsg = ref('')
+
+/** 保存登录会话令牌 */
+function persistAccessToken(data) {
+  const t = data?.token
+  if (t) localStorage.setItem('accessToken', t)
+}
 
 async function handleLogin() {
   errorMsg.value = ''
   const res = loginRole.value === 'merchant'
     ? await api.merchantLogin({ username: adminUsername.value, password: password.value })
-    : await api.login({ phone: phone.value, password: password.value })
+    : await api.login({ email: userEmail.value, password: password.value })
   if (res.code === 200) {
     if (loginRole.value === 'merchant') {
       const roleToStore = 'MERCHANT'
       localStorage.setItem('role', roleToStore)
       localStorage.setItem('adminId', String(res.data.adminId))
       localStorage.setItem('adminName', res.data.username || '')
-      alert('商家登录成功')
+      persistAccessToken(res.data)
+      showAppMessage('商家登录成功', '欢迎')
       router.push('/merchant')
       return
     }
@@ -32,7 +50,8 @@ async function handleLogin() {
     localStorage.setItem('role', 'USER')
     localStorage.setItem('userId', String(res.data.userId))
     localStorage.setItem('nickname', res.data.nickname || '')
-    alert('登录成功')
+    persistAccessToken(res.data)
+    showAppMessage('登录成功', '欢迎')
     router.push('/')
   } else {
     errorMsg.value = res.message || '登录失败'
@@ -41,19 +60,42 @@ async function handleLogin() {
 
 async function handleRegister() {
   errorMsg.value = ''
+  if (registerRole.value === 'merchant') {
+    const res = await api.merchantRegister({
+      username: adminUsername.value,
+      password: password.value,
+      shopName: shopName.value,
+      contactName: contactName.value,
+      phone: phone.value,
+      email: email.value,
+    })
+    if (res.code === 200) {
+      persistAccessToken(res.data)
+      showAppMessage('商家注册成功，请使用商家登录', '提示')
+      mode.value = 'login'
+      loginRole.value = 'merchant'
+      password.value = ''
+    } else {
+      errorMsg.value = res.message || '注册失败'
+    }
+    return
+  }
   if (!nickname.value.trim()) {
     errorMsg.value = '请填写昵称'
     return
   }
   const res = await api.register({
     nickname: nickname.value,
-    phone: phone.value,
-    email: email.value,
+    email: userEmail.value,
+    phone: userPhone.value,
     password: password.value,
   })
   if (res.code === 200) {
-    alert('注册成功，请登录')
+    persistAccessToken(res.data)
+    showAppMessage('注册成功，请登录', '提示')
     mode.value = 'login'
+    loginRole.value = 'user'
+    password.value = ''
   } else {
     errorMsg.value = res.message || '注册失败'
   }
@@ -63,10 +105,18 @@ function switchMode(nextMode) {
   mode.value = nextMode
   errorMsg.value = ''
   password.value = ''
+  if (nextMode === 'register') {
+    registerRole.value = loginRole.value === 'merchant' ? 'merchant' : 'user'
+  }
 }
 
 function switchLoginRole(nextRole) {
   loginRole.value = nextRole
+  errorMsg.value = ''
+}
+
+function switchRegisterRole(next) {
+  registerRole.value = next
   errorMsg.value = ''
 }
 </script>
@@ -76,16 +126,25 @@ function switchLoginRole(nextRole) {
     <div class="hero-panel">
       <p class="hero-tag">账户认证中心</p>
       <h2>宠物电商运营系统</h2>
-      <p class="hero-desc">登录后可进入用户端购物流程或管理端运营页面（离线 Mock 模式）。</p>
+      <p class="hero-desc">一站式宠物商品选购与店铺运营：登录后可浏览下单，或使用商家账号管理商品与订单。</p>
     </div>
 
     <div class="login-container">
       <div class="login-header">
         <h3>{{ mode === 'login' ? '欢迎登录' : '注册新账号' }}</h3>
-        <p>请填写必要信息完成身份验证</p>
+        <p>{{ mode === 'login' ? '请填写必要信息完成身份验证' : '选择注册类型并填写资料' }}</p>
       </div>
 
       <form class="login-form" @submit.prevent="mode === 'login' ? handleLogin() : handleRegister()">
+        <div v-if="mode === 'register'" class="form-toggle segmented">
+          <button type="button" class="tab-btn" :class="{ active: registerRole === 'user' }" @click="switchRegisterRole('user')">
+            注册用户
+          </button>
+          <button type="button" class="tab-btn" :class="{ active: registerRole === 'merchant' }" @click="switchRegisterRole('merchant')">
+            注册商家
+          </button>
+        </div>
+
         <div v-if="mode === 'login'" class="form-toggle segmented">
           <button type="button" class="tab-btn" :class="{ active: loginRole === 'user' }" @click="switchLoginRole('user')">
             用户登录
@@ -95,19 +154,47 @@ function switchLoginRole(nextRole) {
           </button>
         </div>
 
-        <div v-if="mode === 'register'" class="form-item">
+        <div v-if="mode === 'register' && registerRole === 'user'" class="form-item">
           <label>昵称</label>
           <input v-model="nickname" type="text" placeholder="请输入昵称" required />
         </div>
 
-        <div v-if="mode === 'register'" class="form-item">
-          <label>邮箱（可选）</label>
-          <input v-model="email" type="email" placeholder="请输入邮箱，不填也可注册" />
+        <div v-if="mode === 'register' && registerRole === 'merchant'" class="form-item">
+          <label>商家登录账号</label>
+          <input v-model="adminUsername" type="text" placeholder="用于登录的账号（唯一）" required />
         </div>
 
-        <div v-if="mode === 'register' || loginRole === 'user'" class="form-item">
-          <label>手机号</label>
-          <input v-model="phone" type="text" placeholder="请输入手机号" required />
+        <div v-if="mode === 'register' && registerRole === 'merchant'" class="form-item">
+          <label>店铺名称</label>
+          <input v-model="shopName" type="text" placeholder="请输入店铺名称" required />
+        </div>
+
+        <div v-if="mode === 'register' && registerRole === 'merchant'" class="form-item">
+          <label>联系人</label>
+          <input v-model="contactName" type="text" placeholder="请输入联系人姓名" required />
+        </div>
+
+        <div
+          v-if="(mode === 'register' && registerRole === 'user') || (mode === 'login' && loginRole === 'user')"
+          class="form-item"
+        >
+          <label>登录邮箱</label>
+          <input v-model="userEmail" type="email" placeholder="如 test@example.com" required autocomplete="email" />
+        </div>
+
+        <div v-if="mode === 'register' && registerRole === 'user'" class="form-item">
+          <label>手机号（可选）</label>
+          <input v-model="userPhone" type="text" placeholder="可不填" maxlength="20" />
+        </div>
+
+        <div v-if="mode === 'register' && registerRole === 'merchant'" class="form-item">
+          <label>联系邮箱（可选）</label>
+          <input v-model="email" type="email" placeholder="店铺联系邮箱" />
+        </div>
+
+        <div v-if="mode === 'register' && registerRole === 'merchant'" class="form-item">
+          <label>联系电话</label>
+          <input v-model="phone" type="text" placeholder="店铺联系电话" required />
         </div>
 
         <div v-if="mode === 'login' && loginRole === 'merchant'" class="form-item">

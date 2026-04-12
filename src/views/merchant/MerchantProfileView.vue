@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { api } from '../../utils/request'
+import { showAppMessage } from '../../utils/appMessage'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -12,6 +13,8 @@ const form = ref({
   phone: '',
   email: '',
   avatarUrl: '',
+  /** 每周销售额目标（元），空表示不设目标 */
+  salesTargetWeekly: '',
 })
 
 function merchantId() {
@@ -40,6 +43,10 @@ async function loadProfile() {
     phone: String(res.data?.phone || ''),
     email: String(res.data?.email || ''),
     avatarUrl: String(res.data?.avatarUrl || ''),
+    salesTargetWeekly:
+      res.data?.salesTargetWeekly != null && res.data.salesTargetWeekly !== ''
+        ? String(res.data.salesTargetWeekly)
+        : '',
   }
 }
 
@@ -61,14 +68,17 @@ async function saveProfile() {
   }
   saving.value = true
   errorMsg.value = ''
-  const res = await api.merchantUpdateProfile(mid, form.value)
+  const res = await api.merchantUpdateProfile(mid, {
+    ...form.value,
+    salesTargetWeekly: String(form.value.salesTargetWeekly ?? '').trim(),
+  })
   saving.value = false
   if (res.code !== 200) {
     errorMsg.value = res.message || '保存失败'
     return
   }
   localStorage.setItem('adminName', form.value.username)
-  alert('保存成功')
+  showAppMessage('保存成功', '提示')
 }
 
 onMounted(loadProfile)
@@ -78,7 +88,7 @@ onMounted(loadProfile)
   <div class="pw-page profile-page profile-page--merchant">
     <section class="pw-hero">
       <h1 class="pw-title">商家资料</h1>
-      <p class="pw-lead">可修改头像、店铺基础信息与联系方式。</p>
+      <p class="pw-lead">可修改头像、店铺基础信息、联系方式，以及运营总览中使用的「每周销售额目标」。</p>
     </section>
 
     <div v-if="loading" class="pw-state">加载中...</div>
@@ -126,6 +136,21 @@ onMounted(loadProfile)
               <label class="profile-label" for="mf-email">联系邮箱</label>
               <div class="profile-field-control">
                 <input id="mf-email" v-model="form.email" class="pw-input profile-input" type="email" maxlength="80" placeholder="可选" />
+              </div>
+            </div>
+            <div class="profile-field">
+              <label class="profile-label" for="mf-sales-target">每周销售额目标（元）</label>
+              <div class="profile-field-control profile-field-control--stack">
+                <input
+                  id="mf-sales-target"
+                  v-model="form.salesTargetWeekly"
+                  class="pw-input profile-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="留空则不在趋势图中显示目标线"
+                />
+                <p class="profile-hint">用于「店铺运营总览」近 6 段 7 天窗口的橙色目标对比线；保存后写入数据库。</p>
               </div>
             </div>
           </div>
@@ -232,6 +257,33 @@ onMounted(loadProfile)
 .profile-file-btn:hover {
   border-color: #0b1630;
   color: #0b1630;
+}
+
+.profile-field-control--stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+/**
+ * number 在 flex 子项中默认 min-width:auto，会按内容收窄；pw-input 的 flex:1 在纵向 flex 里易干扰宽度。
+ */
+.profile-field-control--stack .pw-input.profile-input[type='number'] {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  box-sizing: border-box;
+}
+
+.profile-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7b91;
+  line-height: 1.45;
 }
 
 .profile-form {

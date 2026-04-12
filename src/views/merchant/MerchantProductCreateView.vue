@@ -1,7 +1,9 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../../utils/request'
+import { showAppMessage } from '../../utils/appMessage'
+import { categorySelectOptgroups, firstSelectableCategoryId } from '../../utils/categoryNav'
 
 const router = useRouter()
 const merchantId = ref(Number(localStorage.getItem('adminId') || 0))
@@ -17,10 +19,17 @@ const description = ref('')
 
 const categories = ref([])
 
+const categoryOptgroups = computed(() => categorySelectOptgroups(categories.value))
+
 async function loadCategories() {
   const res = await api.getCategories()
-  if (res.code === 200) categories.value = res.data || []
-  if (!categoryId.value && categories.value.length) categoryId.value = categories.value[0].categoryId
+  if (res.code === 200) {
+    categories.value = res.data || []
+    const og = categorySelectOptgroups(categories.value)
+    if (og.length && (categoryId.value == null || categoryId.value === '')) {
+      categoryId.value = firstSelectableCategoryId(og)
+    }
+  }
 }
 
 function parseNonNegativeNumber(v) {
@@ -32,23 +41,23 @@ function parseNonNegativeNumber(v) {
 async function create() {
   const t = title.value.trim()
   if (!t) {
-    alert('商品名称不能为空')
+    showAppMessage('商品名称不能为空')
     return
   }
   const cid = Number(categoryId.value || 0)
   if (!cid) {
-    alert('请选择类目')
+    showAppMessage('请选择类目')
     return
   }
 
   const p = parseNonNegativeNumber(price.value)
   if (p === null) {
-    alert('价格必须为非负数')
+    showAppMessage('价格必须为非负数')
     return
   }
   const s = parseNonNegativeNumber(stock.value)
   if (s === null) {
-    alert('库存必须为非负数')
+    showAppMessage('库存必须为非负数')
     return
   }
 
@@ -68,14 +77,14 @@ async function create() {
   if (res.code === 200) {
     const newId = res.data?.productId || 0
     if (!newId) {
-      alert('创建成功，但无法定位新商品')
+      showAppMessage('创建成功，但无法定位新商品')
       return
     }
     router.push(`/merchant/product/${newId}/edit`)
     return
   }
 
-  alert(res.message || '创建失败')
+  showAppMessage(res.message || '创建失败')
 }
 
 function goBack() {
@@ -108,10 +117,16 @@ onMounted(loadCategories)
 
           <div class="form-group">
             <label>类目</label>
-            <select v-model="categoryId" class="input">
-              <option v-for="c in categories" :key="c.categoryId" :value="c.categoryId">
-                {{ c.name }}
-              </option>
+            <select v-model.number="categoryId" class="input">
+              <optgroup v-for="g in categoryOptgroups" :key="g.groupLabel" :label="g.groupLabel">
+                <option
+                  v-for="o in g.options"
+                  :key="`${g.groupLabel}-${o.categoryId}`"
+                  :value="o.categoryId"
+                >
+                  {{ o.label }}
+                </option>
+              </optgroup>
             </select>
           </div>
 

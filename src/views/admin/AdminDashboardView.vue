@@ -4,6 +4,27 @@ import { useRouter } from 'vue-router'
 import { api } from '../../utils/request'
 
 const router = useRouter()
+
+const dashProductTargets = {
+  all: '/admin/products',
+  online: { path: '/admin/products', query: { shelf: 'online' } },
+  offline: { path: '/admin/products', query: { shelf: 'offline' } },
+  low: { path: '/admin/inventory', query: { tab: 'low' } },
+  sold: { path: '/admin/inventory', query: { tab: 'sold' } },
+}
+
+const dashOrderTargets = {
+  CREATED: { path: '/admin/orders', query: { status: 'CREATED' } },
+  PAID: { path: '/admin/orders', query: { status: 'PAID' } },
+  SHIPPED: { path: '/admin/orders', query: { status: 'SHIPPED' } },
+  COMPLETED: { path: '/admin/orders', query: { status: 'COMPLETED' } },
+  CANCELLED: { path: '/admin/orders', query: { status: 'CANCELLED' } },
+}
+
+function goDash(to) {
+  router.push(to)
+}
+
 const products = ref([])
 const orders = ref([])
 const loading = ref(false)
@@ -46,35 +67,133 @@ onMounted(async () => {
       <div class="section">
         <div class="section-title">商品概览</div>
         <div class="stats">
-          <div class="stat-item"><span>商品总数</span><strong>{{ products.length }}</strong></div>
-          <div class="stat-item"><span>上架中</span><strong>{{ onlineProducts }}</strong></div>
-          <div class="stat-item muted"><span>已下架</span><strong>{{ offProducts }}</strong></div>
-          <div class="stat-item warn"><span>库存紧张</span><strong>{{ lowStockProducts }}</strong></div>
-          <div class="stat-item muted"><span>售罄</span><strong>{{ soldOutProducts }}</strong></div>
+          <div
+            class="stat-item stat-item--click"
+            role="button"
+            tabindex="0"
+            @click="goDash(dashProductTargets.all)"
+            @keydown.enter.prevent="goDash(dashProductTargets.all)"
+            @keydown.space.prevent="goDash(dashProductTargets.all)"
+          >
+            <span>商品总数</span><strong>{{ products.length }}</strong>
+          </div>
+          <div
+            class="stat-item stat-item--click"
+            role="button"
+            tabindex="0"
+            @click="goDash(dashProductTargets.online)"
+            @keydown.enter.prevent="goDash(dashProductTargets.online)"
+            @keydown.space.prevent="goDash(dashProductTargets.online)"
+          >
+            <span>上架中</span><strong>{{ onlineProducts }}</strong>
+          </div>
+          <div
+            class="stat-item muted stat-item--click"
+            role="button"
+            tabindex="0"
+            @click="goDash(dashProductTargets.offline)"
+            @keydown.enter.prevent="goDash(dashProductTargets.offline)"
+            @keydown.space.prevent="goDash(dashProductTargets.offline)"
+          >
+            <span>已下架</span><strong>{{ offProducts }}</strong>
+          </div>
+          <div
+            class="stat-item warn stat-item--click"
+            role="button"
+            tabindex="0"
+            @click="goDash(dashProductTargets.low)"
+            @keydown.enter.prevent="goDash(dashProductTargets.low)"
+            @keydown.space.prevent="goDash(dashProductTargets.low)"
+          >
+            <span>库存紧张</span><strong>{{ lowStockProducts }}</strong>
+          </div>
+          <div
+            class="stat-item muted stat-item--click"
+            role="button"
+            tabindex="0"
+            @click="goDash(dashProductTargets.sold)"
+            @keydown.enter.prevent="goDash(dashProductTargets.sold)"
+            @keydown.space.prevent="goDash(dashProductTargets.sold)"
+          >
+            <span>售罄</span><strong>{{ soldOutProducts }}</strong>
+          </div>
         </div>
       </div>
 
       <div class="section">
         <div class="section-title">订单概览</div>
         <div class="stats">
-          <div class="stat-item"><span>待支付</span><strong>{{ createdOrders }}</strong></div>
-          <div class="stat-item dark"><span>待发货</span><strong>{{ paidOrders }}</strong></div>
-          <div class="stat-item"><span>已发货</span><strong>{{ shippedOrders }}</strong></div>
-          <div class="stat-item"><span>已完成</span><strong>{{ completedOrders }}</strong></div>
-          <div class="stat-item muted"><span>已取消</span><strong>{{ cancelledOrders }}</strong></div>
+          <div
+            class="stat-item stat-item--click"
+            role="button"
+            tabindex="0"
+            @click="goDash(dashOrderTargets.CREATED)"
+            @keydown.enter.prevent="goDash(dashOrderTargets.CREATED)"
+            @keydown.space.prevent="goDash(dashOrderTargets.CREATED)"
+          >
+            <span>待支付</span><strong>{{ createdOrders }}</strong>
+          </div>
+          <div
+            class="stat-item dark stat-item--click"
+            role="button"
+            tabindex="0"
+            @click="goDash(dashOrderTargets.PAID)"
+            @keydown.enter.prevent="goDash(dashOrderTargets.PAID)"
+            @keydown.space.prevent="goDash(dashOrderTargets.PAID)"
+          >
+            <span>待发货</span><strong>{{ paidOrders }}</strong>
+          </div>
+          <div
+            class="stat-item stat-item--click"
+            role="button"
+            tabindex="0"
+            @click="goDash(dashOrderTargets.SHIPPED)"
+            @keydown.enter.prevent="goDash(dashOrderTargets.SHIPPED)"
+            @keydown.space.prevent="goDash(dashOrderTargets.SHIPPED)"
+          >
+            <span>已发货</span><strong>{{ shippedOrders }}</strong>
+          </div>
+          <div
+            class="stat-item stat-item--click"
+            role="button"
+            tabindex="0"
+            @click="goDash(dashOrderTargets.COMPLETED)"
+            @keydown.enter.prevent="goDash(dashOrderTargets.COMPLETED)"
+            @keydown.space.prevent="goDash(dashOrderTargets.COMPLETED)"
+          >
+            <span>已完成</span><strong>{{ completedOrders }}</strong>
+          </div>
+          <div
+            class="stat-item muted stat-item--click"
+            role="button"
+            tabindex="0"
+            @click="goDash(dashOrderTargets.CANCELLED)"
+            @keydown.enter.prevent="goDash(dashOrderTargets.CANCELLED)"
+            @keydown.space.prevent="goDash(dashOrderTargets.CANCELLED)"
+          >
+            <span>已取消</span><strong>{{ cancelledOrders }}</strong>
+          </div>
         </div>
       </div>
 
       <div class="section">
         <div class="section-title">快捷入口</div>
-        <div class="card-list">
+        <div class="card-list card-list--4">
           <div class="card" @click="router.push('/admin/products')">
             <h3>商品管理</h3>
             <p>上架/下架、价格与库存维护，快速处理低库存与售罄商品。</p>
           </div>
+          <div class="card" @click="router.push('/admin/inventory')">
+            <h3>库存监管</h3>
+            <p>库存紧张与售罄集中查看，补货提醒与上架状态处理。</p>
+          </div>
           <div class="card" @click="router.push('/admin/orders')">
             <h3>订单处理</h3>
             <p>查看订单并处理状态流转，覆盖发货/完成/取消。</p>
+          </div>
+          <div class="card" @click="router.push('/admin/accounts')">
+            <h3>账号管理</h3>
+            <p>用户与商家账号：启用/禁用登录、重置密码。</p>
           </div>
         </div>
       </div>
@@ -109,13 +228,34 @@ h2 { font-size: 34px; color: #1a2740; margin-bottom: 8px; }
 .stat-item.dark span, .stat-item.dark strong { color: #f2f6fc; }
 .stat-item.muted { background: #f7f9fc; }
 .stat-item.warn { background: #fff7e6; border-color: #ffd591; }
+.stat-item--click {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.stat-item--click:hover {
+  border-color: #0b1630;
+  box-shadow: 0 6px 16px rgba(14, 28, 46, 0.08);
+}
+.stat-item--click:focus-visible {
+  outline: 2px solid #0b1630;
+  outline-offset: 2px;
+}
+.stat-item.dark.stat-item--click:hover {
+  border-color: #1a3358;
+  box-shadow: 0 6px 18px rgba(8, 20, 42, 0.35);
+}
 .card-list { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 14px; margin-top: 6px; }
+.card-list--4 { grid-template-columns: repeat(4, minmax(180px, 1fr)); }
 .card { border: 1px solid #d8e1ed; border-radius: 4px; padding: 18px; cursor: pointer; background: #fff; }
 .card:hover { border-color: #0c1e3d; box-shadow: 0 8px 18px rgba(14, 28, 46, 0.08); }
 .card h3 { font-size: 20px; color: #13233b; margin-bottom: 6px; }
 .card p { color: #657489; font-size: 13px; line-height: 1.6; }
 
+@media (max-width: 1200px) {
+  .card-list--4 { grid-template-columns: repeat(2, minmax(200px, 1fr)); }
+}
 @media (max-width: 980px) {
+  .card-list--4 { grid-template-columns: 1fr; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .card-list { grid-template-columns: 1fr; }
 }

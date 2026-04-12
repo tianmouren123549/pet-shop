@@ -1,9 +1,9 @@
 <template>
   <div class="admin-placeholder">
     <div class="card">
-      <h2>管理员页面待设计</h2>
-      <p>当前后台页面已专用于商家端，管理员端将后续单独设计。</p>
-      <p class="sub">你可以先使用商家端完成商品与订单演示流程。</p>
+      <h2>功能建设中</h2>
+      <p>该管理模块正在升级，请稍后再试或通过其他已开放入口完成操作。</p>
+      <p class="sub">如需处理店铺商品与订单，请使用商家工作台相关菜单。</p>
     </div>
   </div>
 </template>

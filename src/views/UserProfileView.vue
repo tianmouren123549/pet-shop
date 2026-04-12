@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { api } from '../utils/request'
+import { showAppMessage } from '../utils/appMessage'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -14,6 +15,12 @@ const form = ref({
 
 function userId() {
   return Number(localStorage.getItem('userId') || 0)
+}
+
+/** 与顶栏 App.vue 同步头像（无头像时顶栏用默认图） */
+function persistHeaderAvatar(avatarUrl) {
+  localStorage.setItem('userAvatarUrl', String(avatarUrl || '').trim())
+  window.dispatchEvent(new CustomEvent('petshop-user-avatar-updated'))
 }
 
 async function loadProfile() {
@@ -37,6 +44,7 @@ async function loadProfile() {
     email: String(res.data?.email || ''),
     avatarUrl: String(res.data?.avatarUrl || ''),
   }
+  persistHeaderAvatar(form.value.avatarUrl)
 }
 
 function onAvatarChange(e) {
@@ -64,7 +72,8 @@ async function saveProfile() {
     return
   }
   localStorage.setItem('nickname', form.value.nickname)
-  alert('保存成功')
+  persistHeaderAvatar(form.value.avatarUrl)
+  showAppMessage('保存成功', '提示')
 }
 
 onMounted(loadProfile)
@@ -101,25 +110,33 @@ onMounted(loadProfile)
               </div>
             </div>
             <div class="profile-field">
-              <label class="profile-label" for="pf-phone">手机号</label>
+              <label class="profile-label" for="pf-email">登录邮箱</label>
               <div class="profile-field-control">
-                <input id="pf-phone" v-model="form.phone" class="pw-input profile-input" type="text" maxlength="20" />
+                <input
+                  id="pf-email"
+                  v-model="form.email"
+                  class="pw-input profile-input"
+                  type="email"
+                  maxlength="80"
+                  required
+                  autocomplete="email"
+                />
               </div>
             </div>
             <div class="profile-field">
-              <label class="profile-label" for="pf-email">邮箱</label>
+              <label class="profile-label" for="pf-phone">手机号（可选）</label>
               <div class="profile-field-control">
-                <input id="pf-email" v-model="form.email" class="pw-input profile-input" type="email" maxlength="80" placeholder="可选" />
+                <input id="pf-phone" v-model="form.phone" class="pw-input profile-input" type="text" maxlength="20" />
               </div>
             </div>
           </div>
 
           <div class="profile-actions">
             <button type="button" class="pw-btn profile-save-btn" :disabled="saving" @click="saveProfile">
-              {{ saving ? '保存中...' : '保存资料' }}
-            </button>
-          </div>
-        </div>
+          {{ saving ? '保存中...' : '保存资料' }}
+        </button>
+      </div>
+    </div>
       </div>
     </section>
   </div>
