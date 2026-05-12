@@ -1,6 +1,7 @@
 package com.gzu.petshop.controller.merchant;
 
 import com.gzu.petshop.common.Result;
+import com.gzu.petshop.dto.merchant.MerchantOrderDetailDTO;
 import com.gzu.petshop.dto.merchant.MerchantOrderStatusUpdateRequest;
 import com.gzu.petshop.dto.merchant.MerchantOrderSummaryDTO;
 import com.gzu.petshop.dto.merchant.MerchantOrderTodoBadgesDTO;
@@ -30,6 +31,20 @@ public class MerchantOrderController {
             return Result.error("商家ID无效");
         }
         return Result.success(merchantOrderService.listOrders(merchantId, status));
+    }
+
+    /**
+     * 订单详情（仅本店明细）；路径使用数字约束，避免与 {@code /todo-badges} 冲突。
+     */
+    @GetMapping("/{orderId:\\d+}")
+    public Result<MerchantOrderDetailDTO> getOrderDetail(
+            @PathVariable Long orderId,
+            @RequestParam Long merchantId) {
+        if (merchantId == null || merchantId <= 0) {
+            return Result.error("商家ID无效");
+        }
+        MerchantOrderDetailDTO d = merchantOrderService.getOrderDetail(merchantId, orderId);
+        return d == null ? Result.error("订单不存在或无权查看") : Result.success(d);
     }
 
     @GetMapping("/todo-badges")

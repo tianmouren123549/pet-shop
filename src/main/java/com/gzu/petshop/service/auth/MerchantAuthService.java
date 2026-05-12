@@ -7,21 +7,30 @@ import com.gzu.petshop.dto.merchant.MerchantRegisterRequest;
 import com.gzu.petshop.entity.Merchant;
 import com.gzu.petshop.mapper.merchant.MerchantMapper;
 import com.gzu.petshop.security.JwtService;
+import com.gzu.petshop.service.mail.RegistrationWelcomeMailNotifier;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.regex.Pattern;
 
 @Service
 public class MerchantAuthService {
+    private static final Pattern EMAIL_LOOSE =
+            Pattern.compile("^[\\w.!#$%&'*+/=?^`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$");
     private final MerchantMapper merchantMapper;
     private final JwtService jwtService;
+    private final RegistrationWelcomeMailNotifier registrationWelcomeMailNotifier;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public MerchantAuthService(MerchantMapper merchantMapper, JwtService jwtService) {
+    public MerchantAuthService(
+            MerchantMapper merchantMapper,
+            JwtService jwtService,
+            RegistrationWelcomeMailNotifier registrationWelcomeMailNotifier) {
         this.merchantMapper = merchantMapper;
         this.jwtService = jwtService;
+        this.registrationWelcomeMailNotifier = registrationWelcomeMailNotifier;
     }
 
     /**
@@ -54,6 +63,12 @@ public class MerchantAuthService {
             email = email.trim();
             if (email.isBlank()) {
                 email = null;
+            } else {
+                String lower = email.toLowerCase();
+                if (!isValidMerchantContactEmail(lower)) {
+                    return Result.error("联系邮箱格式不正确");
+                }
+                email = lower;
             }
         }
         Merchant m = new Merchant();
@@ -68,9 +83,19 @@ public class MerchantAuthService {
         m.setCreatedAt(LocalDateTime.now());
         m.setLastLoginAt(null);
         merchantMapper.insert(m);
+        if (email != null && !email.isBlank()) {
+            registrationWelcomeMailNotifier.notifyMerchantRegistered(email, m.getShopName(), m.getUsername());
+        }
         MerchantLoginResult dto = new MerchantLoginResult(m.getMerchantId(), m.getUsername(), "MERCHANT");
         dto.setToken(jwtService.createAccessToken("MERCHANT", m.getMerchantId()));
         return Result.success(dto);
+    }
+
+    private static boolean isValidMerchantContactEmail(String email) {
+        if (email == null || email.length() < 5 || email.length() > 128) {
+            return false;
+        }
+        return EMAIL_LOOSE.matcher(email).matches();
     }
 
     @Transactional

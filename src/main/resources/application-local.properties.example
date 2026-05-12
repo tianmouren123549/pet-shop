@@ -1,0 +1,4 @@
+# 复制本文件为 application-local.properties（已在 .gitignore，勿提交密钥）
+# 任填其一即可配合 application.properties 中的占位符
+
+# app.ai.volcengine.api-key-inline=从方舟控制台「API Key」列复制

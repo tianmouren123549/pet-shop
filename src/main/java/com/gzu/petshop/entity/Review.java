@@ -23,6 +23,19 @@ public class Review {
 
     @TableField("golden_retriever_score")
     private BigDecimal goldenRetrieverScore;
+
+    @TableField("sentiment_label")
+    private String sentimentLabel;
+
+    @TableField("intent_label")
+    private String intentLabel;
+
+    @TableField("bert_version")
+    private String bertVersion;
+
+    @TableField("analyzed_at")
+    private LocalDateTime analyzedAt;
+
     private Integer status;
 
     @TableField("created_at")
@@ -74,6 +87,38 @@ public class Review {
 
     public void setGoldenRetrieverScore(BigDecimal goldenRetrieverScore) {
         this.goldenRetrieverScore = goldenRetrieverScore;
+    }
+
+    public String getSentimentLabel() {
+        return sentimentLabel;
+    }
+
+    public void setSentimentLabel(String sentimentLabel) {
+        this.sentimentLabel = sentimentLabel;
+    }
+
+    public String getIntentLabel() {
+        return intentLabel;
+    }
+
+    public void setIntentLabel(String intentLabel) {
+        this.intentLabel = intentLabel;
+    }
+
+    public String getBertVersion() {
+        return bertVersion;
+    }
+
+    public void setBertVersion(String bertVersion) {
+        this.bertVersion = bertVersion;
+    }
+
+    public LocalDateTime getAnalyzedAt() {
+        return analyzedAt;
+    }
+
+    public void setAnalyzedAt(LocalDateTime analyzedAt) {
+        this.analyzedAt = analyzedAt;
     }
 
     public Integer getStatus() {

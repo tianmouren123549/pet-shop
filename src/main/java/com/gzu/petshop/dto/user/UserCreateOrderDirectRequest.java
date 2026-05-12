@@ -7,6 +7,11 @@ public class UserCreateOrderDirectRequest {
     private Long userId;
     private Long productId;
     private Integer quantity;
+    private String receiverName;
+    private String receiverPhone;
+    private String receiverRegion;
+    private String receiverAddress;
+    private Long addressId;
 
     public Long getUserId() {
         return userId;
@@ -30,5 +35,45 @@ public class UserCreateOrderDirectRequest {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public String getReceiverName() {
+        return receiverName;
+    }
+
+    public void setReceiverName(String receiverName) {
+        this.receiverName = receiverName;
+    }
+
+    public String getReceiverPhone() {
+        return receiverPhone;
+    }
+
+    public void setReceiverPhone(String receiverPhone) {
+        this.receiverPhone = receiverPhone;
+    }
+
+    public String getReceiverRegion() {
+        return receiverRegion;
+    }
+
+    public void setReceiverRegion(String receiverRegion) {
+        this.receiverRegion = receiverRegion;
+    }
+
+    public String getReceiverAddress() {
+        return receiverAddress;
+    }
+
+    public void setReceiverAddress(String receiverAddress) {
+        this.receiverAddress = receiverAddress;
+    }
+
+    public Long getAddressId() {
+        return addressId;
+    }
+
+    public void setAddressId(Long addressId) {
+        this.addressId = addressId;
     }
 }

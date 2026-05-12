@@ -10,10 +10,11 @@ import com.gzu.petshop.dto.common.MerchantSessionRequest;
 import com.gzu.petshop.service.support.ChatService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.List;
 
 /**
- * 用户端与商家的会话与消息（无平台客服会话）。
+ * 用户端：与商家会话，以及与平台管理员会话。
  */
 @RestController
 @RequestMapping("/api/chat")
@@ -40,6 +41,22 @@ public class ChatController {
         return Result.success(dto);
     }
 
+    /**
+     * 获取或创建「用户 → 平台管理员」会话。
+     */
+    @PostMapping("/session/admin")
+    public Result<ChatSessionResponseDTO> sessionForAdmin(@RequestBody Map<String, Long> body) {
+        Long userId = body != null ? body.get("userId") : null;
+        if (userId == null || userId <= 0) {
+            return Result.error("请先登录");
+        }
+        ChatSessionResponseDTO dto = chatService.getOrCreateUserAdminSession(userId);
+        if (dto == null) {
+            return Result.error("用户不存在");
+        }
+        return Result.success(dto);
+    }
+
     @GetMapping("/session/{sessionId}/messages")
     public Result<List<ChatMessageViewDTO>> messages(@PathVariable Long sessionId, @RequestParam Long userId) {
         if (userId == null || userId <= 0) {
@@ -53,7 +70,7 @@ public class ChatController {
         if (userId == null || userId <= 0) {
             return Result.error("请先登录");
         }
-        return Result.success(new ChatUnreadBadgeDTO(chatService.userHasUnreadMerchantReplies(userId)));
+        return Result.success(chatService.userChatUnreadBadge(userId));
     }
 
     @GetMapping("/unread-merchants")

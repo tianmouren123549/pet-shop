@@ -46,11 +46,10 @@ public class UserOrderController {
 
     @PostMapping("/create-from-cart")
     public Result<Map<String, Long>> createFromCart(@RequestBody UserCreateFromCartRequest body) {
-        Long userId = body != null ? body.getUserId() : null;
         Long merchantId = body != null ? body.getMerchantId() : null;
         CreateOrderResponse r = (merchantId != null && merchantId > 0)
-                ? userOrderService.createFromCartForMerchant(userId, merchantId)
-                : userOrderService.createFromCart(userId);
+                ? userOrderService.createFromCartForMerchant(body)
+                : userOrderService.createFromCart(body);
         if (!r.isOk()) {
             return Result.error(r.getError());
         }

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -17,6 +18,12 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private final boolean apiErrorDetail;
+
+    public GlobalExceptionHandler(@Value("${app.debug.api-error-detail:false}") boolean apiErrorDetail) {
+        this.apiErrorDetail = apiErrorDetail;
+    }
 
     /**
      * 上传超过 Spring 配置的单文件/总大小限制。
@@ -51,6 +58,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<Void> handleAny(Exception e) {
         log.error("unhandled exception", e);
+        if (apiErrorDetail) {
+            String kind = e.getClass().getSimpleName();
+            String msg = e.getMessage();
+            if (msg != null && !msg.isBlank()) {
+                int max = 400;
+                String shortMsg = msg.length() > max ? msg.substring(0, max) + "..." : msg;
+                return Result.error(kind + ": " + shortMsg);
+            }
+            return Result.error(kind);
+        }
         return Result.error("服务繁忙，请稍后重试");
     }
 }

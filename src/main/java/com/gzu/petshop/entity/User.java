@@ -20,6 +20,13 @@ public class User {
     private String avatarUrl;
     @TableField("password_hash")
     private String passwordHash;
+    @TableField("pet_preference")
+    private String petPreference;
+    /** NORMAL / PLUS */
+    @TableField("membership_tier")
+    private String membershipTier;
+    @TableField("plus_expires_at")
+    private LocalDateTime plusExpiresAt;
     private Integer status;
     @TableField("created_at")
     private LocalDateTime createdAt;
@@ -79,6 +86,14 @@ public class User {
 
     public void setStatus(Integer status) {
         this.status = status;
+    }
+
+    public String getPetPreference() {
+        return petPreference;
+    }
+
+    public void setPetPreference(String petPreference) {
+        this.petPreference = petPreference;
     }
 
     public LocalDateTime getCreatedAt() {

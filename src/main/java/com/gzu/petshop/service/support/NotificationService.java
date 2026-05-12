@@ -6,6 +6,7 @@ import com.gzu.petshop.dto.common.NotificationViewDTO;
 import com.gzu.petshop.dto.common.RestockSubscribeOutcome;
 import com.gzu.petshop.dto.common.RestockSubscribeRequest;
 import com.gzu.petshop.entity.Notification;
+import com.gzu.petshop.entity.Orders;
 import com.gzu.petshop.entity.Product;
 import com.gzu.petshop.entity.RestockSubscription;
 import com.gzu.petshop.mapper.notification.NotificationMapper;
@@ -15,6 +16,7 @@ import com.gzu.petshop.mapper.user.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -78,6 +80,76 @@ public class NotificationService {
         n.setReadStatus(1);
         notificationMapper.updateById(n);
         return null;
+    }
+
+    /**
+     * 订单创建为「待支付」时提醒用户尽快支付（写入消息中心）。
+     */
+    public void notifyUserOrderPendingPayment(Orders order) {
+        if (order == null || order.getUserId() == null || order.getUserId() <= 0) {
+            return;
+        }
+        String orderNo = order.getOrderNo() != null && !order.getOrderNo().isBlank()
+                ? order.getOrderNo()
+                : ("订单号 " + order.getOrderId());
+        String amt = formatPayAmount(order.getPayAmount());
+        String content = "订单「" + orderNo + "」已创建，应付 ¥" + amt
+                + "。请尽快前往「我的订单」完成支付；超时未支付将自动取消。";
+        content = truncateNoticeContent(content);
+        insertNotice("USER", order.getUserId(), "待支付订单", content, null, "ORDER_PENDING_PAY");
+    }
+
+    /**
+     * 订单变为「已发货」时提醒用户关注物流（写入消息中心）。
+     */
+    public void notifyUserOrderShipped(Orders order) {
+        if (order == null || order.getUserId() == null || order.getUserId() <= 0) {
+            return;
+        }
+        String orderNo = order.getOrderNo() != null && !order.getOrderNo().isBlank()
+                ? order.getOrderNo()
+                : ("订单号 " + order.getOrderId());
+        String logistics = order.getLogisticsNo() != null && !order.getLogisticsNo().isBlank()
+                ? "物流单号：" + order.getLogisticsNo() + "。"
+                : "请在订单详情查看物流信息。";
+        String content = "订单「" + orderNo + "」已发货。" + logistics + "收到货后请及时确认收货。";
+        content = truncateNoticeContent(content);
+        insertNotice("USER", order.getUserId(), "订单已发货", content, null, "ORDER_SHIPPED");
+    }
+
+    /**
+     * 管理端催发货：向订单涉及的每个商家写入一条站内通知（不改变订单状态）。
+     */
+    public void notifyMerchantsAdminUrgeShipment(Long orderId, String orderNo, java.util.Collection<Long> merchantIds) {
+        if (orderId == null || merchantIds == null || merchantIds.isEmpty()) {
+            return;
+        }
+        String no = orderNo != null && !orderNo.isBlank() ? orderNo : ("#" + orderId);
+        String content = "订单「" + no + "」已支付，客户等待发货。请及时在商家后台处理发货。";
+        content = truncateNoticeContent(content);
+        for (Long mid : merchantIds) {
+            if (mid == null || mid <= 0) {
+                continue;
+            }
+            insertNotice("MERCHANT", mid, "平台催发货", content, null, "ADMIN_URGE_SHIP");
+        }
+    }
+
+    private static String formatPayAmount(BigDecimal pay) {
+        if (pay == null) {
+            return "—";
+        }
+        return pay.stripTrailingZeros().toPlainString();
+    }
+
+    private static String truncateNoticeContent(String content) {
+        if (content == null) {
+            return "";
+        }
+        if (content.length() <= 500) {
+            return content;
+        }
+        return content.substring(0, 500);
     }
 
     @Transactional
@@ -181,9 +253,7 @@ public class NotificationService {
         int stock = p.getStock() == null ? 0 : p.getStock();
         String base = "商品「" + p.getTitle() + "」" + reason + "（库存 " + stock + "）";
         String content = note.isEmpty() ? base : base + " " + note;
-        if (content.length() > 500) {
-            content = content.substring(0, 500);
-        }
+        content = truncateNoticeContent(content);
         insertNotice("MERCHANT", p.getMerchantId(), "补货提醒", content, productId, reason);
         return null;
     }

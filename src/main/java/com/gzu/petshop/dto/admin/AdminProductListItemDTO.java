@@ -13,6 +13,10 @@ public class AdminProductListItemDTO {
     private String merchantContactName;
     private String title;
     private Long categoryId;
+    /** 类目中文名，来自 {@code category.name} */
+    private String categoryName;
+    /** 主图 URL，来自 {@code product_detail.image_url}（相对路径由前端拼接网关） */
+    private String imageUrl;
     private Long brandId;
     private BigDecimal price;
     private Integer stock;
@@ -66,6 +70,22 @@ public class AdminProductListItemDTO {
 
     public void setCategoryId(Long categoryId) {
         this.categoryId = categoryId;
+    }
+
+    public String getCategoryName() {
+        return categoryName;
+    }
+
+    public void setCategoryName(String categoryName) {
+        this.categoryName = categoryName;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public Long getBrandId() {

@@ -57,5 +57,21 @@ public class AdminOrderController {
         }
         return err == null ? Result.success() : Result.error(err);
     }
+
+    /**
+     * 对已支付、待发货订单发起催发货：向订单内各商家写入站内通知（不改变订单状态）。
+     */
+    @PostMapping("/{orderId}/urge-shipment")
+    public Result<Void> urgeShipment(HttpServletRequest request, @PathVariable Long orderId) {
+        String err = adminOrderService.urgeShipment(orderId);
+        if (err == null) {
+            Long aid = adminAuditService.currentAdminId(request);
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("orderId", orderId);
+            adminAuditService.log(aid, AdminAuditService.ACTION_ORDER_URGE_SHIPMENT,
+                    AdminAuditService.TARGET_ORDER, orderId, detail);
+        }
+        return err == null ? Result.successWithMessage("已通知商家尽快发货") : Result.error(err);
+    }
 }
 

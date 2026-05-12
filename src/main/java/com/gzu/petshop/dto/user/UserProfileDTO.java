@@ -9,6 +9,12 @@ public class UserProfileDTO {
     private String phone;
     private String email;
     private String avatarUrl;
+    /** 用户首页宠物偏好：cat/dog/both。 */
+    private String petPreference;
+    /** NORMAL / PLUS */
+    private String membershipTier;
+    /** ISO 日期时间或 null */
+    private String plusExpiresAt;
 
     public Long getUserId() {
         return userId;
@@ -48,5 +54,29 @@ public class UserProfileDTO {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public String getPetPreference() {
+        return petPreference;
+    }
+
+    public void setPetPreference(String petPreference) {
+        this.petPreference = petPreference;
+    }
+
+    public String getMembershipTier() {
+        return membershipTier;
+    }
+
+    public void setMembershipTier(String membershipTier) {
+        this.membershipTier = membershipTier;
+    }
+
+    public String getPlusExpiresAt() {
+        return plusExpiresAt;
+    }
+
+    public void setPlusExpiresAt(String plusExpiresAt) {
+        this.plusExpiresAt = plusExpiresAt;
     }
 }

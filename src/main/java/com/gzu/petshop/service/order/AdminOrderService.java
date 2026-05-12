@@ -18,6 +18,7 @@ import com.gzu.petshop.mapper.order.OrdersMapper;
 import com.gzu.petshop.mapper.product.ProductDetailMapper;
 import com.gzu.petshop.mapper.product.ProductMapper;
 import com.gzu.petshop.mapper.user.UserMapper;
+import com.gzu.petshop.service.support.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -49,6 +51,7 @@ public class AdminOrderService {
     private final MerchantMapper merchantMapper;
     private final ProductMapper productMapper;
     private final ProductDetailMapper productDetailMapper;
+    private final NotificationService notificationService;
 
     public AdminOrderService(OrdersMapper ordersMapper,
                              OrderItemMapper orderItemMapper,
@@ -56,7 +59,8 @@ public class AdminOrderService {
                              UserMapper userMapper,
                              MerchantMapper merchantMapper,
                              ProductMapper productMapper,
-                             ProductDetailMapper productDetailMapper) {
+                             ProductDetailMapper productDetailMapper,
+                             NotificationService notificationService) {
         this.ordersMapper = ordersMapper;
         this.orderItemMapper = orderItemMapper;
         this.orderStockService = orderStockService;
@@ -64,6 +68,7 @@ public class AdminOrderService {
         this.merchantMapper = merchantMapper;
         this.productMapper = productMapper;
         this.productDetailMapper = productDetailMapper;
+        this.notificationService = notificationService;
     }
 
     /** 供审计等场景读取当前订单状态（不存在则返回 {@code null}）。 */
@@ -274,6 +279,39 @@ public class AdminOrderService {
         order.setStatusReason(req.getStatusReason());
         order.setUpdatedAt(LocalDateTime.now());
         ordersMapper.updateById(order);
+        if ("SHIPPED".equals(to) && "PAID".equals(from)) {
+            notificationService.notifyUserOrderShipped(order);
+        }
+        return null;
+    }
+
+    /**
+     * 管理端对「已支付、待发货」订单催发货：通知订单内各商家（不改变订单状态）。
+     *
+     * @return 错误文案；成功返回 {@code null}
+     */
+    @Transactional
+    public String urgeShipment(Long orderId) {
+        if (orderId == null) {
+            return "订单不存在";
+        }
+        Orders o = ordersMapper.selectById(orderId);
+        if (o == null) {
+            return "订单不存在";
+        }
+        if (!"PAID".equals(normalize(o.getStatus()))) {
+            return "仅待发货（已支付）订单可催发货";
+        }
+        List<OrderItem> items = orderItemMapper.selectList(new QueryWrapper<OrderItem>().eq("order_id", orderId));
+        Set<Long> mids = items.stream()
+                .map(OrderItem::getMerchantId)
+                .filter(Objects::nonNull)
+                .filter(id -> id > 0)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (mids.isEmpty()) {
+            return "订单无商家明细，无法通知";
+        }
+        notificationService.notifyMerchantsAdminUrgeShipment(orderId, o.getOrderNo(), mids);
         return null;
     }
 

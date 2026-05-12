@@ -1,16 +1,26 @@
 package com.gzu.petshop.service.order;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gzu.petshop.dto.merchant.MerchantOrderDetailDTO;
+import com.gzu.petshop.dto.merchant.MerchantOrderLineDTO;
 import com.gzu.petshop.dto.merchant.MerchantOrderStatusUpdateRequest;
 import com.gzu.petshop.dto.merchant.MerchantOrderSummaryDTO;
 import com.gzu.petshop.dto.merchant.MerchantOrderTodoBadgesDTO;
 import com.gzu.petshop.entity.OrderItem;
 import com.gzu.petshop.entity.Orders;
+import com.gzu.petshop.entity.Product;
+import com.gzu.petshop.entity.ProductDetail;
+import com.gzu.petshop.entity.User;
 import com.gzu.petshop.mapper.order.OrderItemMapper;
 import com.gzu.petshop.mapper.order.OrdersMapper;
+import com.gzu.petshop.mapper.product.ProductDetailMapper;
+import com.gzu.petshop.mapper.product.ProductMapper;
+import com.gzu.petshop.mapper.user.UserMapper;
+import com.gzu.petshop.service.support.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -31,10 +41,24 @@ public class MerchantOrderService {
 
     private final OrdersMapper ordersMapper;
     private final OrderItemMapper orderItemMapper;
+    private final ProductMapper productMapper;
+    private final ProductDetailMapper productDetailMapper;
+    private final UserMapper userMapper;
+    private final NotificationService notificationService;
 
-    public MerchantOrderService(OrdersMapper ordersMapper, OrderItemMapper orderItemMapper) {
+    public MerchantOrderService(
+            OrdersMapper ordersMapper,
+            OrderItemMapper orderItemMapper,
+            ProductMapper productMapper,
+            ProductDetailMapper productDetailMapper,
+            UserMapper userMapper,
+            NotificationService notificationService) {
         this.ordersMapper = ordersMapper;
         this.orderItemMapper = orderItemMapper;
+        this.productMapper = productMapper;
+        this.productDetailMapper = productDetailMapper;
+        this.userMapper = userMapper;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -66,6 +90,13 @@ public class MerchantOrderService {
             row.setOrderId(o.getOrderId());
             row.setOrderNo(o.getOrderNo());
             row.setUserId(o.getUserId());
+            User buyer = userMapper.selectById(o.getUserId());
+            if (buyer != null && buyer.getNickname() != null && !buyer.getNickname().isBlank()) {
+                row.setBuyerNickname(buyer.getNickname().trim());
+            } else {
+                row.setBuyerNickname("用户 #" + o.getUserId());
+            }
+            row.setLogisticsNo(o.getLogisticsNo() != null ? o.getLogisticsNo() : "");
             if (o.getPayAmount() != null) {
                 row.setPayAmount(o.getPayAmount().setScale(2, RoundingMode.HALF_UP).toPlainString());
             } else {
@@ -79,6 +110,86 @@ public class MerchantOrderService {
             out.add(row);
         }
         return out;
+    }
+
+    /**
+     * 订单详情（仅含本商家在本单中的明细行）；非本商家订单或无权查看时返回 {@code null}。
+     */
+    public MerchantOrderDetailDTO getOrderDetail(Long merchantId, Long orderId) {
+        if (merchantId == null || merchantId <= 0 || orderId == null || orderId <= 0) {
+            return null;
+        }
+        List<OrderItem> mine = orderItemMapper.selectList(
+                new QueryWrapper<OrderItem>().eq("order_id", orderId).eq("merchant_id", merchantId));
+        if (mine.isEmpty()) {
+            return null;
+        }
+        Orders o = ordersMapper.selectById(orderId);
+        if (o == null) {
+            return null;
+        }
+        List<MerchantOrderLineDTO> lines = new ArrayList<>();
+        for (OrderItem it : mine) {
+            MerchantOrderLineDTO line = new MerchantOrderLineDTO();
+            line.setProductId(it.getProductId());
+            Long pid = it.getProductId();
+            line.setSkuCode(pid != null && pid > 0 ? String.format("PW-%05d", pid) : "");
+            Product p = productMapper.selectById(it.getProductId());
+            line.setTitle(p != null ? p.getTitle() : "");
+            ProductDetail pd = productDetailMapper.selectById(it.getProductId());
+            String img = "";
+            if (pd != null && pd.getImageUrl() != null && !pd.getImageUrl().isBlank()) {
+                img = pd.getImageUrl().trim();
+            }
+            line.setImageUrl(img);
+            int q = it.getQuantity() == null ? 0 : it.getQuantity();
+            line.setQuantity(q);
+            if (it.getItemPrice() != null) {
+                line.setUnitPrice(it.getItemPrice().setScale(2, RoundingMode.HALF_UP).toPlainString());
+                BigDecimal sub = it.getItemPrice().multiply(BigDecimal.valueOf(q)).setScale(2, RoundingMode.HALF_UP);
+                line.setSubtotal(sub.toPlainString());
+            } else {
+                line.setUnitPrice("0.00");
+                line.setSubtotal("0.00");
+            }
+            lines.add(line);
+        }
+        MerchantOrderDetailDTO dto = new MerchantOrderDetailDTO();
+        dto.setOrderId(o.getOrderId());
+        dto.setOrderNo(o.getOrderNo());
+        dto.setUserId(o.getUserId());
+        if (o.getPayAmount() != null) {
+            dto.setPayAmount(o.getPayAmount().setScale(2, RoundingMode.HALF_UP).toPlainString());
+        } else {
+            dto.setPayAmount("0.00");
+        }
+        dto.setStatus(o.getStatus());
+        if (o.getCreatedAt() != null) {
+            dto.setCreatedAt(ISO_LOCAL.format(o.getCreatedAt()));
+        }
+        if (o.getPaidAt() != null) {
+            dto.setPaidAt(ISO_LOCAL.format(o.getPaidAt()));
+        }
+        if (o.getUpdatedAt() != null) {
+            dto.setUpdatedAt(ISO_LOCAL.format(o.getUpdatedAt()));
+        } else if (o.getPaidAt() != null) {
+            dto.setUpdatedAt(ISO_LOCAL.format(o.getPaidAt()));
+        } else if (o.getCreatedAt() != null) {
+            dto.setUpdatedAt(ISO_LOCAL.format(o.getCreatedAt()));
+        }
+        User buyer = userMapper.selectById(o.getUserId());
+        if (buyer != null && buyer.getNickname() != null && !buyer.getNickname().isBlank()) {
+            dto.setBuyerNickname(buyer.getNickname().trim());
+        } else {
+            dto.setBuyerNickname("用户 #" + o.getUserId());
+        }
+        dto.setReceiverName(o.getReceiverName() != null ? o.getReceiverName() : "");
+        dto.setReceiverPhone(o.getReceiverPhone() != null ? o.getReceiverPhone() : "");
+        dto.setReceiverRegion(o.getReceiverRegion() != null ? o.getReceiverRegion() : "");
+        dto.setReceiverAddress(o.getReceiverAddress() != null ? o.getReceiverAddress() : "");
+        dto.setLogisticsNo(o.getLogisticsNo() != null ? o.getLogisticsNo() : "");
+        dto.setLines(lines);
+        return dto;
     }
 
     /**
@@ -154,6 +265,7 @@ public class MerchantOrderService {
             order.setStatus("SHIPPED");
             order.setUpdatedAt(LocalDateTime.now());
             ordersMapper.updateById(order);
+            notificationService.notifyUserOrderShipped(order);
             return null;
         }
         if ("CANCELLED".equals(next)) {

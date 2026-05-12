@@ -20,6 +20,16 @@ public class Orders {
     private BigDecimal payAmount;
     private String status;
     private String statusReason;
+    /** 收货人（下单快照） */
+    private String receiverName;
+    /** 联系电话 */
+    private String receiverPhone;
+    /** 省市区 */
+    private String receiverRegion;
+    /** 详细地址 */
+    private String receiverAddress;
+    /** 物流单号 */
+    private String logisticsNo;
     private LocalDateTime createdAt;
     private LocalDateTime paidAt;
     @TableField("updated_at")
@@ -80,6 +90,46 @@ public class Orders {
 
     public void setStatusReason(String statusReason) {
         this.statusReason = statusReason;
+    }
+
+    public String getReceiverName() {
+        return receiverName;
+    }
+
+    public void setReceiverName(String receiverName) {
+        this.receiverName = receiverName;
+    }
+
+    public String getReceiverPhone() {
+        return receiverPhone;
+    }
+
+    public void setReceiverPhone(String receiverPhone) {
+        this.receiverPhone = receiverPhone;
+    }
+
+    public String getReceiverRegion() {
+        return receiverRegion;
+    }
+
+    public void setReceiverRegion(String receiverRegion) {
+        this.receiverRegion = receiverRegion;
+    }
+
+    public String getReceiverAddress() {
+        return receiverAddress;
+    }
+
+    public void setReceiverAddress(String receiverAddress) {
+        this.receiverAddress = receiverAddress;
+    }
+
+    public String getLogisticsNo() {
+        return logisticsNo;
+    }
+
+    public void setLogisticsNo(String logisticsNo) {
+        this.logisticsNo = logisticsNo;
     }
 
     public LocalDateTime getCreatedAt() {

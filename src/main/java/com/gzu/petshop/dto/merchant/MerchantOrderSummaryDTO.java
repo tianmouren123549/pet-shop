@@ -7,6 +7,10 @@ public class MerchantOrderSummaryDTO {
     private Long orderId;
     private String orderNo;
     private Long userId;
+    /** 买家展示名 */
+    private String buyerNickname;
+    /** 物流单号（无则空串） */
+    private String logisticsNo;
     /** 实付金额，两位小数字符串 */
     private String payAmount;
     private String status;
@@ -37,6 +41,22 @@ public class MerchantOrderSummaryDTO {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public String getBuyerNickname() {
+        return buyerNickname;
+    }
+
+    public void setBuyerNickname(String buyerNickname) {
+        this.buyerNickname = buyerNickname;
+    }
+
+    public String getLogisticsNo() {
+        return logisticsNo;
+    }
+
+    public void setLogisticsNo(String logisticsNo) {
+        this.logisticsNo = logisticsNo;
     }
 
     public String getPayAmount() {

@@ -14,6 +14,10 @@ public class ReviewViewDTO {
     private Integer rating;
     private String content;
     private BigDecimal goldenRetrieverScore;
+    /** BERT 情感：好评/中评/差评，未分析则为空 */
+    private String sentimentLabel;
+    /** BERT 意图：喂养咨询/商品咨询/…，未分析则为空 */
+    private String intentLabel;
     private String createdAt;
 
     public Long getReviewId() {
@@ -70,6 +74,22 @@ public class ReviewViewDTO {
 
     public void setGoldenRetrieverScore(BigDecimal goldenRetrieverScore) {
         this.goldenRetrieverScore = goldenRetrieverScore;
+    }
+
+    public String getSentimentLabel() {
+        return sentimentLabel;
+    }
+
+    public void setSentimentLabel(String sentimentLabel) {
+        this.sentimentLabel = sentimentLabel;
+    }
+
+    public String getIntentLabel() {
+        return intentLabel;
+    }
+
+    public void setIntentLabel(String intentLabel) {
+        this.intentLabel = intentLabel;
     }
 
     public String getCreatedAt() {

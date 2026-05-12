@@ -3,6 +3,7 @@ package com.gzu.petshop.service.order;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gzu.petshop.dto.user.CreateOrderResponse;
 import com.gzu.petshop.dto.user.OrderDetailQueryResult;
+import com.gzu.petshop.dto.user.UserCreateFromCartRequest;
 import com.gzu.petshop.dto.user.UserCreateOrderDirectRequest;
 import com.gzu.petshop.dto.user.UserOrderDetailDTO;
 import com.gzu.petshop.dto.user.UserOrderLineDTO;
@@ -12,12 +13,18 @@ import com.gzu.petshop.entity.OrderItem;
 import com.gzu.petshop.entity.Orders;
 import com.gzu.petshop.entity.Product;
 import com.gzu.petshop.entity.ProductDetail;
+import com.gzu.petshop.entity.User;
+import com.gzu.petshop.entity.UserAddress;
 import com.gzu.petshop.mapper.order.CartMapper;
 import com.gzu.petshop.mapper.order.OrderItemMapper;
 import com.gzu.petshop.mapper.order.OrdersMapper;
 import com.gzu.petshop.mapper.product.ProductDetailMapper;
 import com.gzu.petshop.mapper.product.ProductMapper;
+import com.gzu.petshop.mapper.user.UserAddressMapper;
 import com.gzu.petshop.mapper.user.UserMapper;
+import com.gzu.petshop.service.support.NotificationService;
+import com.gzu.petshop.service.user.UserEventLogService;
+import com.gzu.petshop.service.user.UserProductFrequencyService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,8 +53,12 @@ public class UserOrderService {
     private final ProductDetailMapper productDetailMapper;
     private final CartMapper cartMapper;
     private final UserMapper userMapper;
+    private final UserAddressMapper userAddressMapper;
     private final OrderStockService orderStockService;
     private final OrderUnpaidTimeoutService orderUnpaidTimeoutService;
+    private final UserEventLogService userEventLogService;
+    private final UserProductFrequencyService userProductFrequencyService;
+    private final NotificationService notificationService;
 
     public UserOrderService(OrdersMapper ordersMapper,
                             OrderItemMapper orderItemMapper,
@@ -55,16 +66,24 @@ public class UserOrderService {
                             ProductDetailMapper productDetailMapper,
                             CartMapper cartMapper,
                             UserMapper userMapper,
+                            UserAddressMapper userAddressMapper,
                             OrderStockService orderStockService,
-                            OrderUnpaidTimeoutService orderUnpaidTimeoutService) {
+                            OrderUnpaidTimeoutService orderUnpaidTimeoutService,
+                            UserEventLogService userEventLogService,
+                            UserProductFrequencyService userProductFrequencyService,
+                            NotificationService notificationService) {
         this.ordersMapper = ordersMapper;
         this.orderItemMapper = orderItemMapper;
         this.productMapper = productMapper;
         this.productDetailMapper = productDetailMapper;
         this.cartMapper = cartMapper;
         this.userMapper = userMapper;
+        this.userAddressMapper = userAddressMapper;
         this.orderStockService = orderStockService;
         this.orderUnpaidTimeoutService = orderUnpaidTimeoutService;
+        this.userEventLogService = userEventLogService;
+        this.userProductFrequencyService = userProductFrequencyService;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -138,6 +157,14 @@ public class UserOrderService {
         dto.setUpdatedAt(formatOrderUpdatedAt(o));
         dto.setItemCount(itemCount);
         dto.setItems(lines);
+        if (o.getPaidAt() != null) {
+            dto.setPaidAt(ISO.format(o.getPaidAt()));
+        }
+        dto.setReceiverName(blankToEmpty(o.getReceiverName()));
+        dto.setReceiverPhone(blankToEmpty(o.getReceiverPhone()));
+        dto.setReceiverRegion(blankToEmpty(o.getReceiverRegion()));
+        dto.setReceiverAddress(blankToEmpty(o.getReceiverAddress()));
+        dto.setLogisticsNo(blankToEmpty(o.getLogisticsNo()));
         return dto;
     }
 
@@ -161,25 +188,38 @@ public class UserOrderService {
      * 从购物车下单：校验上架/库存；若购物车跨多个商家则拒绝（应改用 {@link #createFromCartForMerchant} 分单）。
      */
     @Transactional
-    public CreateOrderResponse createFromCart(Long userId) {
-        if (userId == null || userId <= 0) {
+    public CreateOrderResponse createFromCart(UserCreateFromCartRequest req) {
+        if (req == null || req.getUserId() == null || req.getUserId() <= 0) {
             return CreateOrderResponse.fail("请先登录");
         }
+        Long userId = req.getUserId();
         if (userMapper.selectById(userId) == null) {
             return CreateOrderResponse.fail("用户不存在");
         }
         List<Cart> cartRows = cartMapper.selectList(new QueryWrapper<Cart>().eq("user_id", userId));
-        return createOrderFromCartRows(userId, cartRows, true);
+        ReceiverSnapshot snap = buildReceiverSnapshot(
+                userId,
+                req.getAddressId(),
+                req.getReceiverName(),
+                req.getReceiverPhone(),
+                req.getReceiverRegion(),
+                req.getReceiverAddress());
+        if (snap == null) {
+            return CreateOrderResponse.fail("收货地址无效");
+        }
+        return createOrderFromCartRows(userId, cartRows, true, snap);
     }
 
     /**
      * 仅结算指定商家在购物车中的商品行，其它商家的行保留。
      */
     @Transactional
-    public CreateOrderResponse createFromCartForMerchant(Long userId, Long merchantId) {
-        if (userId == null || userId <= 0) {
+    public CreateOrderResponse createFromCartForMerchant(UserCreateFromCartRequest req) {
+        if (req == null || req.getUserId() == null || req.getUserId() <= 0) {
             return CreateOrderResponse.fail("请先登录");
         }
+        Long userId = req.getUserId();
+        Long merchantId = req.getMerchantId();
         if (merchantId == null || merchantId <= 0) {
             return CreateOrderResponse.fail("商家信息无效");
         }
@@ -201,7 +241,17 @@ public class UserOrderService {
         if (subset.isEmpty()) {
             return CreateOrderResponse.fail("该商家在购物车中没有可结算商品");
         }
-        return createOrderFromCartRows(userId, subset, false);
+        ReceiverSnapshot snap = buildReceiverSnapshot(
+                userId,
+                req.getAddressId(),
+                req.getReceiverName(),
+                req.getReceiverPhone(),
+                req.getReceiverRegion(),
+                req.getReceiverAddress());
+        if (snap == null) {
+            return CreateOrderResponse.fail("收货地址无效");
+        }
+        return createOrderFromCartRows(userId, subset, false, snap);
     }
 
     /**
@@ -209,7 +259,8 @@ public class UserOrderService {
      *
      * @param enforceSingleMerchant 为 true 时若行内涉及多个商家则拒绝（整单结算场景）
      */
-    private CreateOrderResponse createOrderFromCartRows(Long userId, List<Cart> cartRows, boolean enforceSingleMerchant) {
+    private CreateOrderResponse createOrderFromCartRows(
+            Long userId, List<Cart> cartRows, boolean enforceSingleMerchant, ReceiverSnapshot snap) {
         if (cartRows == null || cartRows.isEmpty()) {
             return CreateOrderResponse.fail("购物车为空");
         }
@@ -242,11 +293,12 @@ public class UserOrderService {
             return CreateOrderResponse.fail("暂不支持跨店合并结算，请按商家分开下单");
         }
         BigDecimal pay = computePayAmount(prepared);
-        Orders order = insertOrder(userId, pay, "CREATED");
+        Orders order = insertOrder(userId, pay, "CREATED", snap);
         insertOrderItems(order.getOrderId(), prepared);
         for (Cart c : cartRows) {
             cartMapper.deleteById(c.getCartId());
         }
+        notificationService.notifyUserOrderPendingPayment(order);
         return CreateOrderResponse.ok(order.getOrderId());
     }
 
@@ -281,8 +333,19 @@ public class UserOrderService {
         pl.quantity = qty;
         List<PreparedLine> prepared = List.of(pl);
         BigDecimal pay = computePayAmount(prepared);
-        Orders order = insertOrder(req.getUserId(), pay, "CREATED");
+        ReceiverSnapshot snap = buildReceiverSnapshot(
+                req.getUserId(),
+                req.getAddressId(),
+                req.getReceiverName(),
+                req.getReceiverPhone(),
+                req.getReceiverRegion(),
+                req.getReceiverAddress());
+        if (snap == null) {
+            return CreateOrderResponse.fail("收货地址无效");
+        }
+        Orders order = insertOrder(req.getUserId(), pay, "CREATED", snap);
         insertOrderItems(order.getOrderId(), prepared);
+        notificationService.notifyUserOrderPendingPayment(order);
         return CreateOrderResponse.ok(order.getOrderId());
     }
 
@@ -314,7 +377,33 @@ public class UserOrderService {
         order.setPaidAt(now);
         order.setUpdatedAt(now);
         ordersMapper.updateById(order);
+        recordBuyEventsForOrder(orderId, userId);
         return null;
+    }
+
+    /**
+     * 支付成功后写入购买行为，供推荐类目兴趣与在线触发统计使用（失败不影响支付）。
+     */
+    private void recordBuyEventsForOrder(Long orderId, Long userId) {
+        if (orderId == null || userId == null || userId <= 0) {
+            return;
+        }
+        List<OrderItem> lines = orderItemMapper.selectList(
+                new QueryWrapper<OrderItem>().eq("order_id", orderId));
+        if (lines == null || lines.isEmpty()) {
+            return;
+        }
+        for (OrderItem it : lines) {
+            Long pid = it.getProductId();
+            if (pid == null || pid <= 0) {
+                continue;
+            }
+            int q = it.getQuantity() == null ? 1 : Math.max(1, it.getQuantity());
+            int repeats = Math.min(q, 5);
+            for (int i = 0; i < repeats; i++) {
+                userEventLogService.tryRecord(userId, "buy", pid, "order:" + orderId);
+            }
+        }
     }
 
     /**
@@ -369,10 +458,37 @@ public class UserOrderService {
         order.setStatus("COMPLETED");
         order.setUpdatedAt(LocalDateTime.now());
         ordersMapper.updateById(order);
+        userProductFrequencyService.incrementAfterOrderCompleted(orderId);
         return null;
     }
 
-    private Orders insertOrder(Long userId, BigDecimal payAmount, String status) {
+    /**
+     * addressId 有效时仅用地址簿一行；否则用手写收件信息规则。
+     *
+     * @return null 表示地址 id 非法
+     */
+    private ReceiverSnapshot buildReceiverSnapshot(
+            Long userId,
+            Long addressId,
+            String receiverName,
+            String receiverPhone,
+            String receiverRegion,
+            String receiverAddress) {
+        if (addressId != null && addressId > 0) {
+            UserAddress ua = userAddressMapper.selectById(addressId);
+            if (ua == null || !userId.equals(ua.getUserId())) {
+                return null;
+            }
+            return new ReceiverSnapshot(
+                    ua.getReceiverName(),
+                    blankToEmpty(ua.getReceiverPhone()),
+                    blankToEmpty(ua.getReceiverRegion()),
+                    blankToEmpty(ua.getReceiverDetail()));
+        }
+        return resolveReceiverSnapshot(userId, receiverName, receiverPhone, receiverRegion, receiverAddress);
+    }
+
+    private Orders insertOrder(Long userId, BigDecimal payAmount, String status, ReceiverSnapshot snap) {
         Orders o = new Orders();
         o.setOrderNo(genOrderNo());
         o.setUserId(userId);
@@ -380,12 +496,75 @@ public class UserOrderService {
         o.setPayAmount(payAmount);
         o.setStatus(status);
         o.setStatusReason(null);
+        if (snap != null) {
+            o.setReceiverName(snap.name);
+            o.setReceiverPhone(snap.phone);
+            o.setReceiverRegion(snap.region);
+            o.setReceiverAddress(snap.address);
+            o.setLogisticsNo(null);
+        }
         LocalDateTime now = LocalDateTime.now();
         o.setCreatedAt(now);
         o.setPaidAt(null);
         o.setUpdatedAt(now);
         ordersMapper.insert(o);
         return o;
+    }
+
+    private ReceiverSnapshot resolveReceiverSnapshot(
+            Long userId, String receiverName, String receiverPhone, String receiverRegion, String receiverAddress) {
+        User u = userMapper.selectById(userId);
+        String name = firstNonBlank(trimToNull(receiverName), u != null ? trimToNull(u.getNickname()) : null);
+        if (name == null) {
+            name = "用户" + userId;
+        }
+        String phone = firstNonBlank(trimToNull(receiverPhone), u != null ? trimToNull(u.getPhone()) : null);
+        if (phone == null) {
+            phone = "";
+        }
+        String region = trimToEmpty(receiverRegion);
+        String addr = trimToEmpty(receiverAddress);
+        return new ReceiverSnapshot(name, phone, region, addr);
+    }
+
+    private static String trimToNull(String s) {
+        if (s == null) {
+            return null;
+        }
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
+
+    private static String trimToEmpty(String s) {
+        return s == null ? "" : s.trim();
+    }
+
+    private static String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) {
+            return a;
+        }
+        if (b != null && !b.isBlank()) {
+            return b;
+        }
+        return null;
+    }
+
+    private static String blankToEmpty(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static final class ReceiverSnapshot {
+        private final String name;
+        private final String phone;
+        private final String region;
+        private final String address;
+
+        private ReceiverSnapshot(String name, String phone, String region, String address) {
+            this.name = name;
+            this.phone = phone;
+            this.region = region;
+            this.address = address;
+        }
     }
 
     private void insertOrderItems(Long orderId, List<PreparedLine> prepared) {

@@ -8,12 +8,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.regex.Pattern;
 
 /**
  * 商家资料读写（与前端 {@code merchantGetProfile} / {@code merchantUpdateProfile} 一致）。
  */
 @Service
 public class MerchantProfileService {
+    private static final Pattern EMAIL_LOOSE =
+            Pattern.compile("^[\\w.!#$%&'*+/=?^`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$");
+
     private final MerchantMapper merchantMapper;
 
     public MerchantProfileService(MerchantMapper merchantMapper) {
@@ -56,7 +60,16 @@ public class MerchantProfileService {
             merchant.setShopName(safe(req.getShopName()));
             merchant.setContactName(safe(req.getContactName()));
             merchant.setPhone(safe(req.getPhone()));
-            merchant.setEmail(safe(req.getEmail()));
+            String email = safe(req.getEmail());
+            if (!email.isEmpty()) {
+                String lower = email.toLowerCase();
+                if (!isValidContactEmail(lower)) {
+                    return "联系邮箱格式不正确";
+                }
+                merchant.setEmail(lower);
+            } else {
+                merchant.setEmail("");
+            }
             if (req.getAvatarUrl() != null) {
                 String av = req.getAvatarUrl().trim();
                 merchant.setAvatarUrl(av.isEmpty() ? null : av);
@@ -83,6 +96,13 @@ public class MerchantProfileService {
 
     private String safe(String s) {
         return s == null ? "" : s.trim();
+    }
+
+    private static boolean isValidContactEmail(String email) {
+        if (email == null || email.length() < 5 || email.length() > 128) {
+            return false;
+        }
+        return EMAIL_LOOSE.matcher(email).matches();
     }
 
     public static class MerchantProfileView {

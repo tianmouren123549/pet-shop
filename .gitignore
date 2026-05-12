@@ -1,4 +1,6 @@
 HELP.md
+# 本地密钥（覆盖 application.properties，勿提交）
+**/application-local.properties
 target/
 uploads/
 .mvn/wrapper/maven-wrapper.jar

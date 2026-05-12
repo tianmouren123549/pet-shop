@@ -8,6 +8,8 @@ public class UserProfileUpdateRequest {
     private String phone;
     private String email;
     private String avatarUrl;
+    /** 用户首页宠物偏好：cat/dog/both。 */
+    private String petPreference;
 
     public String getNickname() {
         return nickname;
@@ -39,5 +41,13 @@ public class UserProfileUpdateRequest {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public String getPetPreference() {
+        return petPreference;
+    }
+
+    public void setPetPreference(String petPreference) {
+        this.petPreference = petPreference;
     }
 }

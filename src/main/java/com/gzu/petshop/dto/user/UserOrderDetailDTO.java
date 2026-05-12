@@ -15,6 +15,13 @@ public class UserOrderDetailDTO {
     private String updatedAt;
     private Integer itemCount;
     private List<UserOrderLineDTO> items;
+    /** 支付成功时间，ISO 本地时间字符串；未支付为 null */
+    private String paidAt;
+    private String receiverName;
+    private String receiverPhone;
+    private String receiverRegion;
+    private String receiverAddress;
+    private String logisticsNo;
 
     public Long getOrderId() {
         return orderId;
@@ -86,5 +93,53 @@ public class UserOrderDetailDTO {
 
     public void setItems(List<UserOrderLineDTO> items) {
         this.items = items;
+    }
+
+    public String getPaidAt() {
+        return paidAt;
+    }
+
+    public void setPaidAt(String paidAt) {
+        this.paidAt = paidAt;
+    }
+
+    public String getReceiverName() {
+        return receiverName;
+    }
+
+    public void setReceiverName(String receiverName) {
+        this.receiverName = receiverName;
+    }
+
+    public String getReceiverPhone() {
+        return receiverPhone;
+    }
+
+    public void setReceiverPhone(String receiverPhone) {
+        this.receiverPhone = receiverPhone;
+    }
+
+    public String getReceiverRegion() {
+        return receiverRegion;
+    }
+
+    public void setReceiverRegion(String receiverRegion) {
+        this.receiverRegion = receiverRegion;
+    }
+
+    public String getReceiverAddress() {
+        return receiverAddress;
+    }
+
+    public void setReceiverAddress(String receiverAddress) {
+        this.receiverAddress = receiverAddress;
+    }
+
+    public String getLogisticsNo() {
+        return logisticsNo;
+    }
+
+    public void setLogisticsNo(String logisticsNo) {
+        this.logisticsNo = logisticsNo;
     }
 }

@@ -61,6 +61,8 @@ public class ReviewService {
         d.setRating(r.getRating());
         d.setContent(r.getContent());
         d.setGoldenRetrieverScore(r.getGoldenRetrieverScore());
+        d.setSentimentLabel(r.getSentimentLabel());
+        d.setIntentLabel(r.getIntentLabel());
         if (r.getCreatedAt() != null) {
             d.setCreatedAt(ISO.format(r.getCreatedAt()));
         }

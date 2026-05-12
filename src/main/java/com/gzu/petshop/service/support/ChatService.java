@@ -2,6 +2,8 @@ package com.gzu.petshop.service.support;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.gzu.petshop.dto.admin.AdminSupportSessionDTO;
+import com.gzu.petshop.dto.common.ChatUnreadBadgeDTO;
 import com.gzu.petshop.dto.common.ChatMessageViewDTO;
 import com.gzu.petshop.dto.common.ChatSendMerchantRequest;
 import com.gzu.petshop.dto.common.ChatSendUserRequest;
@@ -30,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -37,11 +41,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 用户与商家沟通（表 {@code chat_session}、{@code chat_message}）；仅 {@link #TYPE_USER_TO_MERCHANT} 会话。
+ * 用户与商家沟通（{@link #TYPE_USER_TO_MERCHANT}），以及用户/商家与平台管理员（{@link #TYPE_USER_TO_ADMIN}、{@link #TYPE_MERCHANT_TO_ADMIN}）。
  */
 @Service
 public class ChatService {
     private static final String TYPE_USER_TO_ADMIN = "USER_TO_ADMIN";
+    public static final String TYPE_MERCHANT_TO_ADMIN = "MERCHANT_TO_ADMIN";
     public static final String TYPE_USER_TO_MERCHANT = "USER_TO_MERCHANT";
     private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private static final int STATUS_OPEN = 1;
@@ -117,6 +122,73 @@ public class ChatService {
         return dto;
     }
 
+    @Transactional
+    public ChatSessionResponseDTO getOrCreateUserAdminSession(long userId) {
+        if (userId <= 0) {
+            return null;
+        }
+        User u = userMapper.selectById(userId);
+        if (u == null) {
+            return null;
+        }
+        ChatSession s = chatSessionMapper.selectOne(
+                new QueryWrapper<ChatSession>()
+                        .eq("user_id", userId)
+                        .isNull("merchant_id")
+                        .eq("session_type", TYPE_USER_TO_ADMIN)
+                        .eq("status", STATUS_OPEN)
+                        .last("LIMIT 1"));
+        if (s == null) {
+            s = new ChatSession();
+            s.setSessionNo(genSessionNo());
+            s.setUserId(userId);
+            s.setOrderId(null);
+            s.setAgentAdminId(null);
+            s.setMerchantId(null);
+            s.setSessionType(TYPE_USER_TO_ADMIN);
+            s.setStatus(STATUS_OPEN);
+            s.setCreatedAt(LocalDateTime.now());
+            s.setUpdatedAt(LocalDateTime.now());
+            chatSessionMapper.insert(s);
+        }
+        return toSessionResponse(s, "平台客服");
+    }
+
+    @Transactional
+    public ChatSessionResponseDTO getOrCreateMerchantAdminSession(long merchantId) {
+        if (merchantId <= 0) {
+            return null;
+        }
+        Merchant m = merchantMapper.selectById(merchantId);
+        if (m == null) {
+            return null;
+        }
+        ChatSession s = chatSessionMapper.selectOne(
+                new QueryWrapper<ChatSession>()
+                        .eq("merchant_id", merchantId)
+                        .isNull("user_id")
+                        .eq("session_type", TYPE_MERCHANT_TO_ADMIN)
+                        .eq("status", STATUS_OPEN)
+                        .last("LIMIT 1"));
+        if (s == null) {
+            s = new ChatSession();
+            s.setSessionNo(genSessionNo());
+            s.setUserId(null);
+            s.setOrderId(null);
+            s.setAgentAdminId(null);
+            s.setMerchantId(merchantId);
+            s.setSessionType(TYPE_MERCHANT_TO_ADMIN);
+            s.setStatus(STATUS_OPEN);
+            s.setCreatedAt(LocalDateTime.now());
+            s.setUpdatedAt(LocalDateTime.now());
+            chatSessionMapper.insert(s);
+        }
+        String label = m.getShopName() != null && !m.getShopName().isBlank()
+                ? m.getShopName()
+                : (m.getUsername() != null ? m.getUsername() : ("商家" + merchantId));
+        return toSessionResponse(s, "平台管理员 · " + label);
+    }
+
     public List<ChatMessageViewDTO> listMessages(Long sessionId) {
         if (sessionId == null) {
             return List.of();
@@ -140,7 +212,11 @@ public class ChatService {
         if (s == null || !userId.equals(s.getUserId())) {
             return List.of();
         }
-        markMerchantMessagesReadByUser(sessionId);
+        if (TYPE_USER_TO_ADMIN.equals(s.getSessionType())) {
+            markAdminRepliesReadByUser(sessionId);
+        } else {
+            markMerchantMessagesReadByUser(sessionId);
+        }
         return listMessages(sessionId);
     }
 
@@ -152,6 +228,17 @@ public class ChatService {
         if (sessionId == null || merchantId == null || merchantId <= 0) {
             return List.of();
         }
+        ChatSession s0 = chatSessionMapper.selectById(sessionId);
+        if (s0 == null) {
+            return List.of();
+        }
+        if (TYPE_MERCHANT_TO_ADMIN.equals(s0.getSessionType())) {
+            if (!merchantId.equals(s0.getMerchantId())) {
+                return List.of();
+            }
+            markAdminRepliesReadByMerchant(sessionId);
+            return listMessages(sessionId);
+        }
         if (assertMerchantOwnsSession(sessionId, merchantId) != null) {
             return List.of();
         }
@@ -160,27 +247,45 @@ public class ChatService {
     }
 
     /**
-     * 用户顶栏：是否存在未读的商家回复。
+     * 用户顶栏未读：区分商家会话与平台会话（前端两条导航分别红点）。
+     */
+    public ChatUnreadBadgeDTO userChatUnreadBadge(Long userId) {
+        if (userId == null || userId <= 0) {
+            return new ChatUnreadBadgeDTO(false, false);
+        }
+        boolean peer = chatMessageMapper.countUnreadMerchantMessagesForUser(userId) > 0;
+        boolean platform = chatMessageMapper.countUnreadAdminRepliesForUser(userId) > 0;
+        return new ChatUnreadBadgeDTO(peer, platform);
+    }
+
+    /**
+     * 用户顶栏：是否存在未读的商家回复或平台回复（兼容旧逻辑）。
      */
     public boolean userHasUnreadMerchantReplies(Long userId) {
-        if (userId == null || userId <= 0) {
-            return false;
-        }
-        return chatMessageMapper.countUnreadMerchantMessagesForUser(userId) > 0;
+        return userChatUnreadBadge(userId).isHasUnread();
     }
 
     /**
-     * 商家顶栏：是否存在未读的用户咨询消息。
+     * 商家顶栏未读：区分用户咨询会话与平台会话。
+     */
+    public ChatUnreadBadgeDTO merchantChatUnreadBadge(Long merchantId) {
+        if (merchantId == null || merchantId <= 0) {
+            return new ChatUnreadBadgeDTO(false, false);
+        }
+        boolean peer = chatMessageMapper.countUnreadUserMessagesForMerchant(merchantId) > 0;
+        boolean platform = chatMessageMapper.countUnreadAdminRepliesForMerchant(merchantId) > 0;
+        return new ChatUnreadBadgeDTO(peer, platform);
+    }
+
+    /**
+     * 商家顶栏：是否存在未读的用户咨询或平台回复（兼容旧逻辑）。
      */
     public boolean merchantHasUnreadUserMessages(Long merchantId) {
-        if (merchantId == null || merchantId <= 0) {
-            return false;
-        }
-        return chatMessageMapper.countUnreadUserMessagesForMerchant(merchantId) > 0;
+        return merchantChatUnreadBadge(merchantId).isHasUnread();
     }
 
     /**
-     * 联系商家页：按店铺标注未读商家回复（与 {@link #userHasUnreadMerchantReplies} 统计口径一致，按 merchant_id 分组）。
+     * 联系商家页：按店铺标注未读商家回复（仅 USER_TO_MERCHANT；不含联系平台会话）。
      */
     public ChatUnreadMerchantsDTO unreadMerchantIdsForUser(Long userId) {
         if (userId == null || userId <= 0) {
@@ -212,6 +317,25 @@ public class ChatService {
                         .set(ChatMessage::getIsReadByMerchant, 1));
     }
 
+    private void markAdminRepliesReadByUser(Long sessionId) {
+        chatMessageMapper.update(
+                null,
+                new LambdaUpdateWrapper<ChatMessage>()
+                        .eq(ChatMessage::getSessionId, sessionId)
+                        .eq(ChatMessage::getSenderType, "ADMIN")
+                        .set(ChatMessage::getIsReadByUser, 1)
+                        .set(ChatMessage::getReadAt, LocalDateTime.now()));
+    }
+
+    private void markAdminRepliesReadByMerchant(Long sessionId) {
+        chatMessageMapper.update(
+                null,
+                new LambdaUpdateWrapper<ChatMessage>()
+                        .eq(ChatMessage::getSessionId, sessionId)
+                        .eq(ChatMessage::getSenderType, "ADMIN")
+                        .set(ChatMessage::getIsReadByMerchant, 1));
+    }
+
     @Transactional
     public String sendUserMessage(ChatSendUserRequest req) {
         if (req == null || req.getSessionId() == null || req.getUserId() == null || req.getUserId() <= 0) {
@@ -227,7 +351,10 @@ public class ChatService {
         }
         LocalDateTime now = LocalDateTime.now();
         if (TYPE_USER_TO_ADMIN.equals(s.getSessionType())) {
-            return "平台在线客服已关闭，请通过商家沟通：先调用 POST /api/chat/session/merchant 获取会话";
+            insertMessage(req.getSessionId(), "USER", req.getUserId(), content, now);
+            s.setUpdatedAt(now);
+            chatSessionMapper.updateById(s);
+            return null;
         }
         insertMessage(req.getSessionId(), "USER", req.getUserId(), content, now);
         s.setUpdatedAt(now);
@@ -269,11 +396,24 @@ public class ChatService {
         if (content.isEmpty()) {
             return "消息不能为空";
         }
+        ChatSession s = chatSessionMapper.selectById(req.getSessionId());
+        if (s == null) {
+            return "会话不存在";
+        }
+        if (TYPE_MERCHANT_TO_ADMIN.equals(s.getSessionType())) {
+            if (!req.getMerchantId().equals(s.getMerchantId())) {
+                return "无权限操作该会话";
+            }
+            LocalDateTime now = LocalDateTime.now();
+            insertMessage(req.getSessionId(), "MERCHANT", req.getMerchantId(), content, now);
+            s.setUpdatedAt(now);
+            chatSessionMapper.updateById(s);
+            return null;
+        }
         String deny = assertMerchantOwnsSession(req.getSessionId(), req.getMerchantId());
         if (deny != null) {
             return deny;
         }
-        ChatSession s = chatSessionMapper.selectById(req.getSessionId());
         LocalDateTime now = LocalDateTime.now();
         insertMessage(req.getSessionId(), "MERCHANT", req.getMerchantId(), content, now);
         s.setUpdatedAt(now);
@@ -369,12 +509,19 @@ public class ChatService {
         if ("USER".equals(senderType)) {
             m.setIsReadByUser(1);
             m.setIsReadByMerchant(0);
+            m.setIsReadByAdmin(0);
         } else if ("MERCHANT".equals(senderType)) {
             m.setIsReadByUser(0);
             m.setIsReadByMerchant(1);
+            m.setIsReadByAdmin(0);
+        } else if ("ADMIN".equals(senderType)) {
+            m.setIsReadByUser(0);
+            m.setIsReadByMerchant(0);
+            m.setIsReadByAdmin(1);
         } else {
             m.setIsReadByUser(0);
             m.setIsReadByMerchant(0);
+            m.setIsReadByAdmin(0);
         }
         m.setReadAt(null);
         m.setCreatedAt(createdAt);
@@ -413,6 +560,88 @@ public class ChatService {
             d.setCreatedAt(ISO.format(m.getCreatedAt()));
         }
         return d;
+    }
+
+    /**
+     * 管理端：咨询会话列表（用户→平台、商家→平台）。
+     */
+    public List<AdminSupportSessionDTO> listAdminSupportSessions() {
+        // 与 Mapper 中其它 @Select 一致：原生 SQL，避免 MP Wrapper 在个别环境下异常
+        List<ChatSession> rows = chatSessionMapper.selectPlatformSupportSessions();
+        List<AdminSupportSessionDTO> out = new ArrayList<>();
+        for (ChatSession s : rows) {
+            AdminSupportSessionDTO d = new AdminSupportSessionDTO();
+            d.setSessionId(s.getSessionId());
+            d.setSessionType(s.getSessionType());
+            if (TYPE_USER_TO_ADMIN.equals(s.getSessionType())) {
+                Long uid = s.getUserId();
+                User u = uid != null && uid > 0 ? userMapper.selectById(uid) : null;
+                d.setCounterpartyTitle(u != null && u.getNickname() != null ? u.getNickname() : ("用户" + (uid != null ? uid : "?")));
+                d.setCounterpartySub(u != null && u.getEmail() != null ? u.getEmail() : "");
+            } else {
+                Long mid = s.getMerchantId();
+                Merchant m = mid != null && mid > 0 ? merchantMapper.selectById(mid) : null;
+                String title = m != null && m.getShopName() != null && !m.getShopName().isBlank()
+                        ? m.getShopName()
+                        : ("商家" + (mid != null ? mid : "?"));
+                d.setCounterpartyTitle(title);
+                d.setCounterpartySub(m != null && m.getUsername() != null ? m.getUsername() : "");
+            }
+            if (s.getUpdatedAt() != null) {
+                d.setUpdatedAt(ISO.format(s.getUpdatedAt()));
+            }
+            long unread = chatMessageMapper.countUnreadCounterpartyForPlatformSession(s.getSessionId());
+            d.setUnreadFromCounterparty(unread > 0);
+            out.add(d);
+        }
+        return out;
+    }
+
+    /**
+     * 管理端拉取会话消息（并将对方发来未读标为管理员已读）。
+     */
+    @Transactional
+    public List<ChatMessageViewDTO> listMessagesForAdmin(Long sessionId) {
+        ChatSession s = chatSessionMapper.selectById(sessionId);
+        if (s == null
+                || (!TYPE_USER_TO_ADMIN.equals(s.getSessionType())
+                        && !TYPE_MERCHANT_TO_ADMIN.equals(s.getSessionType()))) {
+            return List.of();
+        }
+        chatMessageMapper.update(
+                null,
+                new LambdaUpdateWrapper<ChatMessage>()
+                        .eq(ChatMessage::getSessionId, sessionId)
+                        .in(ChatMessage::getSenderType, Arrays.asList("USER", "MERCHANT"))
+                        .set(ChatMessage::getIsReadByAdmin, 1));
+        return listMessages(sessionId);
+    }
+
+    @Transactional
+    public String sendAdminSupportMessage(Long sessionId, Long adminId, String content) {
+        if (sessionId == null || adminId == null || adminId <= 0) {
+            return "参数无效";
+        }
+        String text = content == null ? "" : content.trim();
+        if (text.isEmpty()) {
+            return "消息不能为空";
+        }
+        ChatSession s = chatSessionMapper.selectById(sessionId);
+        if (s == null
+                || (!TYPE_USER_TO_ADMIN.equals(s.getSessionType())
+                        && !TYPE_MERCHANT_TO_ADMIN.equals(s.getSessionType()))) {
+            return "会话不存在";
+        }
+        LocalDateTime now = LocalDateTime.now();
+        insertMessage(sessionId, "ADMIN", adminId, text, now);
+        s.setAgentAdminId(adminId);
+        s.setUpdatedAt(now);
+        chatSessionMapper.updateById(s);
+        return null;
+    }
+
+    public long countUnreadAdminInbox() {
+        return chatMessageMapper.countUnreadForAdminInbox();
     }
 
     private static String genSessionNo() {

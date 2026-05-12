@@ -43,4 +43,37 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
             + "WHERE s.merchant_id = #{merchantId} AND s.session_type = 'USER_TO_MERCHANT' "
             + "AND m.sender_type = 'USER' AND IFNULL(m.is_read_by_merchant, 0) = 0")
     List<Long> selectSessionIdsWithUnreadUserForMerchant(@Param("merchantId") Long merchantId);
+
+    /**
+     * 用户联系平台：管理员发来且用户尚未查看会话。
+     */
+    @Select("SELECT COUNT(1) FROM chat_message m INNER JOIN chat_session s ON m.session_id = s.session_id "
+            + "WHERE s.user_id = #{userId} AND s.session_type = 'USER_TO_ADMIN' "
+            + "AND m.sender_type = 'ADMIN' AND IFNULL(m.is_read_by_user, 0) = 0")
+    long countUnreadAdminRepliesForUser(@Param("userId") Long userId);
+
+    /**
+     * 商家联系平台：管理员发来且商家尚未查看会话。
+     */
+    @Select("SELECT COUNT(1) FROM chat_message m INNER JOIN chat_session s ON m.session_id = s.session_id "
+            + "WHERE s.merchant_id = #{merchantId} AND s.session_type = 'MERCHANT_TO_ADMIN' "
+            + "AND m.sender_type = 'ADMIN' AND IFNULL(m.is_read_by_merchant, 0) = 0")
+    long countUnreadAdminRepliesForMerchant(@Param("merchantId") Long merchantId);
+
+    /**
+     * 管理端收件箱：用户/商家发来且管理员尚未在该会话中查看处理（打开会话会批量标已读）。
+     */
+    @Select("SELECT COUNT(1) FROM chat_message m WHERE IFNULL(m.is_read_by_admin, 0) = 0 "
+            + "AND m.sender_type IN ('USER', 'MERCHANT') "
+            + "AND EXISTS (SELECT 1 FROM chat_session s WHERE s.session_id = m.session_id "
+            + "AND s.session_type IN ('USER_TO_ADMIN', 'MERCHANT_TO_ADMIN'))")
+    long countUnreadForAdminInbox();
+
+    /**
+     * 某平台会话中：对方（用户/商家）发来且管理员尚未标已读的消息条数。
+     */
+    @Select(
+            "SELECT COUNT(1) FROM chat_message WHERE session_id = #{sessionId} "
+                    + "AND sender_type IN ('USER', 'MERCHANT') AND IFNULL(is_read_by_admin, 0) = 0")
+    long countUnreadCounterpartyForPlatformSession(@Param("sessionId") Long sessionId);
 }

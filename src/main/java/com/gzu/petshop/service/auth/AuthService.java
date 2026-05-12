@@ -7,6 +7,7 @@ import com.gzu.petshop.dto.common.RegisterRequest;
 import com.gzu.petshop.entity.User;
 import com.gzu.petshop.mapper.user.UserMapper;
 import com.gzu.petshop.security.JwtService;
+import com.gzu.petshop.service.mail.RegistrationWelcomeMailNotifier;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,11 +22,16 @@ public class AuthService {
 
     private final UserMapper userMapper;
     private final JwtService jwtService;
+    private final RegistrationWelcomeMailNotifier registrationWelcomeMailNotifier;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public AuthService(UserMapper userMapper, JwtService jwtService) {
+    public AuthService(
+            UserMapper userMapper,
+            JwtService jwtService,
+            RegistrationWelcomeMailNotifier registrationWelcomeMailNotifier) {
         this.userMapper = userMapper;
         this.jwtService = jwtService;
+        this.registrationWelcomeMailNotifier = registrationWelcomeMailNotifier;
     }
 
     @Transactional
@@ -62,6 +68,8 @@ public class AuthService {
         user.setCreatedAt(LocalDateTime.now());
 
         userMapper.insert(user);
+
+        registrationWelcomeMailNotifier.notifyUserRegistered(email, user.getNickname());
 
         AuthResult ar = new AuthResult(user.getUserId(), user.getNickname());
         ar.setToken(jwtService.createAccessToken("USER", user.getUserId()));

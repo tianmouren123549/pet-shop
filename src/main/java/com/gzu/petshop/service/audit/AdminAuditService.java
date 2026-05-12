@@ -31,8 +31,11 @@ public class AdminAuditService {
     public static final String ACTION_PRODUCT_UPDATE = "PRODUCT_UPDATE";
     public static final String ACTION_PRODUCT_NOTIFY_RESTOCK = "PRODUCT_NOTIFY_RESTOCK";
     public static final String ACTION_ORDER_STATUS_CHANGE = "ORDER_STATUS_CHANGE";
+    public static final String ACTION_ORDER_URGE_SHIPMENT = "ORDER_URGE_SHIPMENT";
     public static final String ACTION_USER_STATUS_CHANGE = "USER_STATUS_CHANGE";
     public static final String ACTION_USER_PASSWORD_RESET = "USER_PASSWORD_RESET";
+    public static final String ACTION_USER_PET_PREFERENCE_RESET = "USER_PET_PREFERENCE_RESET";
+    public static final String ACTION_USER_PET_PREFERENCE_RESET_ALL = "USER_PET_PREFERENCE_RESET_ALL";
     public static final String ACTION_MERCHANT_STATUS_CHANGE = "MERCHANT_STATUS_CHANGE";
     public static final String ACTION_MERCHANT_PASSWORD_RESET = "MERCHANT_PASSWORD_RESET";
 
