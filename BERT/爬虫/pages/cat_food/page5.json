@@ -1,0 +1,1672 @@
+{
+    "code": "0",
+    "result": {
+        "floors": [
+            {
+                "floorId": "flo_11096",
+                "type": "eCustom",
+                "mId": "commentlist-ratestar",
+                "cf": {
+                    "st": {
+                        "bgc": "#fff"
+                    }
+                },
+                "data": {
+                    "headBackgroundImgInfo": {
+                        "goodRateBackgroundImg": "https://img13.360buyimg.com/imagetools/jfs/t1/212825/31/18931/3272/6294a02eEb831d49a/5c9ed577ca40c51f.png",
+                        "wholeBackgroundImg": "https://img14.360buyimg.com/imagetools/jfs/t1/72040/8/18511/26003/6294a02eEc8922a71/d58c27d0b725c81c.png"
+                    }
+                },
+                "subFloors": [
+                    {
+                        "floorId": "flo_11099",
+                        "type": "eCustom",
+                        "mId": "commentlist-label",
+                        "cf": {
+                            "st": {
+                                "bgc": "#fff"
+                            }
+                        },
+                        "data": {},
+                        "subFloors": [
+                            {
+                                "floorId": "flo_11100",
+                                "type": "eCustom",
+                                "mId": "commentlist-commonlabel",
+                                "cf": {
+                                    "st": {
+                                        "bgc": "#fff"
+                                    }
+                                },
+                                "data": {
+                                    "generalTagList": [
+                                        {
+                                            "name": "全部",
+                                            "identification": "ALL",
+                                            "exposureEventId": "",
+                                            "count": "500000",
+                                            "type": "0",
+                                            "sort": "1",
+                                            "isShowZeroTag": false,
+                                            "isDefaultTag": true,
+                                            "countStr": "99%好评",
+                                            "supportDefaultSort": true,
+                                            "supportNewSort": true,
+                                            "showTopBar": true,
+                                            "showFoldComment": true,
+                                            "tagDesc": {
+                                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                                "icon": "",
+                                                "dialogTitle": "京东评价原则",
+                                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                                "dialogBtn": "我知道了",
+                                                "clerk_type": "1",
+                                                "desc": "京东鼓励真实、有用的评价"
+                                            }
+                                        },
+                                        {
+                                            "name": "图/视频",
+                                            "identification": "SHAITU",
+                                            "exposureEventId": "",
+                                            "count": "10000",
+                                            "type": "102",
+                                            "sort": "3",
+                                            "isShowZeroTag": false,
+                                            "isDefaultTag": false,
+                                            "countStr": "1万+",
+                                            "supportDefaultSort": true,
+                                            "supportNewSort": true,
+                                            "showTopBar": true,
+                                            "showFoldComment": false
+                                        },
+                                        {
+                                            "name": "图/视频",
+                                            "identification": "YOUTU",
+                                            "exposureEventId": "",
+                                            "count": "10000",
+                                            "type": "4",
+                                            "sort": "4",
+                                            "isShowZeroTag": false,
+                                            "isDefaultTag": true,
+                                            "countStr": "1万+",
+                                            "supportDefaultSort": true,
+                                            "supportNewSort": true,
+                                            "showTopBar": true,
+                                            "showFoldComment": true
+                                        },
+                                        {
+                                            "name": "追评",
+                                            "identification": "ZHUIPING",
+                                            "exposureEventId": "CommentsShare_CommentListLabelExpo",
+                                            "count": "200",
+                                            "type": "5",
+                                            "sort": "5",
+                                            "isShowZeroTag": false,
+                                            "isDefaultTag": true,
+                                            "countStr": "200+",
+                                            "supportDefaultSort": true,
+                                            "supportNewSort": true,
+                                            "showTopBar": true,
+                                            "showFoldComment": true
+                                        },
+                                        {
+                                            "name": "好评",
+                                            "identification": "GOOD",
+                                            "exposureEventId": "",
+                                            "count": "20000",
+                                            "type": "3",
+                                            "sort": "6",
+                                            "isShowZeroTag": false,
+                                            "isDefaultTag": true,
+                                            "countStr": "2万+",
+                                            "supportDefaultSort": true,
+                                            "supportNewSort": true,
+                                            "showTopBar": true,
+                                            "showFoldComment": true
+                                        },
+                                        {
+                                            "name": "中评",
+                                            "identification": "NORMAL",
+                                            "exposureEventId": "",
+                                            "count": "200",
+                                            "type": "2",
+                                            "sort": "7",
+                                            "isShowZeroTag": false,
+                                            "isDefaultTag": true,
+                                            "countStr": "200+",
+                                            "supportDefaultSort": true,
+                                            "supportNewSort": true,
+                                            "showTopBar": true,
+                                            "showFoldComment": true
+                                        },
+                                        {
+                                            "name": "差评",
+                                            "identification": "BAD",
+                                            "exposureEventId": "",
+                                            "count": "200",
+                                            "type": "1",
+                                            "sort": "8",
+                                            "isShowZeroTag": false,
+                                            "isDefaultTag": true,
+                                            "countStr": "200+",
+                                            "supportDefaultSort": true,
+                                            "supportNewSort": true,
+                                            "showTopBar": true,
+                                            "showFoldComment": true
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "floorId": "flo_11101",
+                                "type": "eCustom",
+                                "mId": "commentlist-semanticslabel",
+                                "cf": {
+                                    "st": {
+                                        "bgc": "#fff"
+                                    }
+                                },
+                                "data": {
+                                    "currentSkuInfo": {
+                                        "selectEntranceTxt": "选择款式",
+                                        "currentSkuStatus": "2",
+                                        "selectEntrance": "0"
+                                    },
+                                    "semanticsTagList": [
+                                        {
+                                            "id": "75d3684ddfc738750ec24a596b4a14e0##V10003T42",
+                                            "name": "猫猫超爱吃",
+                                            "count": "2698",
+                                            "tagId": "75d3684ddfc738750ec24a596b4a14e0##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "789f5db8d6fbeeccc610c611ec122ac0##V10003T42",
+                                            "name": "毛发更亮泽",
+                                            "count": "406",
+                                            "tagId": "789f5db8d6fbeeccc610c611ec122ac0##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "5105af7381168a16cf2daa7e99f98a99##V10003T42",
+                                            "name": "大便正常",
+                                            "count": "417",
+                                            "tagId": "5105af7381168a16cf2daa7e99f98a99##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "65ed6384787a76605ceeeb91eebd7b94##V10003T42",
+                                            "name": "幼猫适用",
+                                            "count": "71",
+                                            "tagId": "65ed6384787a76605ceeeb91eebd7b94##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "f623b19f8dcd2c9f32f3aa69589d40c1##V10003T42",
+                                            "name": "味道超香",
+                                            "count": "450",
+                                            "tagId": "f623b19f8dcd2c9f32f3aa69589d40c1##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "34cb6cb6d124a99ceb996f99f160bfc9##V10003T42",
+                                            "name": "颗粒大小合适",
+                                            "count": "621",
+                                            "tagId": "34cb6cb6d124a99ceb996f99f160bfc9##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "a3faae02a3bc10c6f4b9288354abf92b##V10003T42",
+                                            "name": "冻干超爱吃",
+                                            "count": "30",
+                                            "tagId": "a3faae02a3bc10c6f4b9288354abf92b##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "d3f7ea2a64306b7f0d35494003d09e29##V10003T42",
+                                            "name": "营养丰富",
+                                            "count": "291",
+                                            "tagId": "d3f7ea2a64306b7f0d35494003d09e29##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "fb25ec53cd1eb16800285a7ed093038a##V10003T42",
+                                            "name": "成猫适用",
+                                            "count": "31",
+                                            "tagId": "fb25ec53cd1eb16800285a7ed093038a##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "51592f3eaf5193debead6a3ea5128b26##V10003T42",
+                                            "name": "颗粒易吞咽",
+                                            "count": "5",
+                                            "tagId": "51592f3eaf5193debead6a3ea5128b26##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "a5a397fa780bf94b371794b5cff12060##V10003T42",
+                                            "name": "猫吃不腻",
+                                            "count": "18",
+                                            "tagId": "a5a397fa780bf94b371794b5cff12060##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        },
+                                        {
+                                            "id": "e5e7dfcaa9d269e385780eafefc95fed##V10003T42",
+                                            "name": "无黑下巴",
+                                            "count": "4",
+                                            "tagId": "e5e7dfcaa9d269e385780eafefc95fed##V10003T42",
+                                            "type": "4",
+                                            "canBeFiltered": true,
+                                            "stand": "1",
+                                            "ckeKeyWordBury": ""
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "floorId": "flo_11102",
+                "type": "eCustom",
+                "mId": "commentlist-sort",
+                "cf": {
+                    "st": {
+                        "bgc": "#fff"
+                    }
+                },
+                "data": {}
+            },
+            {
+                "floorId": "flo_11103",
+                "type": "eCustom",
+                "mId": "commentlist-list",
+                "cf": {
+                    "st": {
+                        "bgc": "#fff"
+                    }
+                },
+                "data": [
+                    {
+                        "commentInfo": {
+                            "userNickName": "王***女",
+                            "userImgURL": "https://storage.360buyimg.com/i.imageUpload/6a645f3630636663666565396433636231353831353835343433353937_sma.jpg",
+                            "commentId": "103493690155267957",
+                            "commentShareUrl": "https://share.m.jd.com/shareOrder/showSharePage.action?productId=69673075023&commentId=T6NdPc50jpUtdR-DWaCfyXqG",
+                            "wareAttribute": [
+                                {
+                                    "颜色": "成猫粮10kg"
+                                }
+                            ],
+                            "afterComment": {},
+                            "noCommentMessage": "用户未及时作出评价哦~",
+                            "haveLiked": "0",
+                            "imageStatusText": "",
+                            "iconList": [
+                                {
+                                    "iconId": "member",
+                                    "iconType": "0",
+                                    "iconTagId": "tab_3863",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                },
+                                {
+                                    "iconId": "shopBought",
+                                    "iconType": "3",
+                                    "iconTagId": "tab_3870",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                }
+                            ],
+                            "tagCommentContent": "很信赖的品牌，也是有小袋独立包装的，很方便，但是最近价格都很高，毛孩子嗷嗷待哺，快要吃不起了！品牌方请问你能看到吗？多做做活动吧毛孩子求求了",
+                            "carTagInfo": "",
+                            "ownerStatus": "0",
+                            "productId": "69673075023",
+                            "buyCount": 7,
+                            "buyCountText": "该店铺购买≥2次",
+                            "commentDate": "2026-01-29 10:43:47",
+                            "commentScore": "5",
+                            "commentScoreText": "超赞",
+                            "praiseCnt": "0",
+                            "praiseText": "有用",
+                            "beforePraiseIcon": "https://img11.360buyimg.com/imagetools/jfs/t1/230919/21/2961/1669/6551f925Fd0b7b52d/d58d93a9f2a6a486.png",
+                            "afterPraiseIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225107/2/3274/4306/6551f925Fe5873551/6236a511983b6cd0.png",
+                            "replyText": "回复",
+                            "replyIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225614/12/1508/705/6551f925Fc2990067/ef456e65cae02b91.png",
+                            "replyCnt": "0",
+                            "commentData": "很信赖的品牌，也是有小袋独立包装的，很方便，但是最近价格都很高，毛孩子嗷嗷待哺，快要吃不起了！品牌方请问你能看到吗？多做做活动吧毛孩子求求了",
+                            "pictureInfoList": [
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/390129/1/10682/209630/697ac961F0cfbf089/00a95ea354b63ec7.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/390129/1/10682/209630/697ac961F0cfbf089/00a95ea354b63ec7.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "720693338",
+                                    "liveShooting": "0"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/392415/17/6802/323633/697ac962F1879f2bd/00a94385a0c214ae.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/392415/17/6802/323633/697ac962F1879f2bd/00a94385a0c214ae.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "1095365362",
+                                    "liveShooting": "0"
+                                }
+                            ],
+                            "guid": "T6NdPc50jpUtdR-DWaCfyXqG",
+                            "maidianInfo": "6994;36281;36282_13065559671_全部_6_1_T6NdPc50jpUtdR-DWaCfyXqG_-100__-100",
+                            "testId": "cmt",
+                            "imageStatus": "1",
+                            "excellentCommentIcon": "",
+                            "officerLevel": "2",
+                            "productSpecifications": "已购 成猫粮10kg",
+                            "newCommentDate": "2026-01-29 10:43:47",
+                            "repurchaseInfo": "该店铺购买≥2次",
+                            "plusUrl": "https://img13.360buyimg.com/img/jfs/t1/401729/39/15386/4039/69b37ce0F74f0a3e7/0276060060dfbd27.png",
+                            "highlightList": [],
+                            "carOwner": "",
+                            "showQuestion": "1",
+                            "pageIndex": "6"
+                        }
+                    },
+                    {
+                        "commentInfo": {
+                            "userNickName": "j***i",
+                            "userImgURL": "https://storage.360buyimg.com/i.imageUpload/6a645f3764393565643262613139383731353630303835393932323434_sma.jpg",
+                            "commentId": "104333390169413927",
+                            "commentShareUrl": "https://share.m.jd.com/shareOrder/showSharePage.action?productId=10098656892439&commentId=T6NaOsR0i5UtdRyPX6ebyX2G",
+                            "wareAttribute": [
+                                {
+                                    "颜色": "成猫4kg"
+                                }
+                            ],
+                            "afterComment": {},
+                            "noCommentMessage": "用户未及时作出评价哦~",
+                            "haveLiked": "0",
+                            "imageStatusText": "",
+                            "iconList": [
+                                {
+                                    "iconId": "member",
+                                    "iconType": "0",
+                                    "iconTagId": "tab_3863",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                },
+                                {
+                                    "iconId": "shopBought",
+                                    "iconType": "3",
+                                    "iconTagId": "tab_3870",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                }
+                            ],
+                            "tagCommentContent": "多次购买了，冻干很多，猫猫们喜欢吃。物流也很快，卖家服务也可以，我是两三种粮混合在一起给猫猫们吃的。不能买太便宜的，一分钱一分货。",
+                            "carTagInfo": "",
+                            "ownerStatus": "0",
+                            "productId": "10098656892439",
+                            "buyCount": 5,
+                            "buyCountText": "该店铺购买≥2次",
+                            "commentDate": "2026-03-11 20:03:03",
+                            "commentScore": "5",
+                            "commentScoreText": "超赞",
+                            "praiseCnt": "0",
+                            "praiseText": "有用",
+                            "beforePraiseIcon": "https://img11.360buyimg.com/imagetools/jfs/t1/230919/21/2961/1669/6551f925Fd0b7b52d/d58d93a9f2a6a486.png",
+                            "afterPraiseIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225107/2/3274/4306/6551f925Fe5873551/6236a511983b6cd0.png",
+                            "replyText": "回复",
+                            "replyIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225614/12/1508/705/6551f925Fc2990067/ef456e65cae02b91.png",
+                            "replyCnt": "0",
+                            "commentData": "多次购买了，冻干很多，猫猫们喜欢吃。物流也很快，卖家服务也可以，我是两三种粮混合在一起给猫猫们吃的。不能买太便宜的，一分钱一分货。",
+                            "pictureInfoList": [
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/400255/27/11917/2796108/69b159f6F1ee6fa08/00a99000005cc858.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/400255/27/11917/2796108/69b159f6F1ee6fa08/00a99000005cc858.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-1166836195",
+                                    "liveShooting": "0"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/399557/22/20115/2776479/69b159f6F0358c309/00a990000048f7ff.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/399557/22/20115/2776479/69b159f6F0358c309/00a990000048f7ff.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-811662291",
+                                    "liveShooting": "0"
+                                }
+                            ],
+                            "guid": "T6NaOsR0i5UtdRyPX6ebyX2G",
+                            "maidianInfo": "6994;36281;36282_13065559671_全部_6_2_T6NaOsR0i5UtdRyPX6ebyX2G_-100__-100",
+                            "testId": "cmt",
+                            "imageStatus": "1",
+                            "excellentCommentIcon": "",
+                            "officerLevel": "1",
+                            "productSpecifications": "已购 成猫4kg",
+                            "newCommentDate": "2026-03-11 20:03:03",
+                            "repurchaseInfo": "该店铺购买≥2次",
+                            "highlightList": [],
+                            "carOwner": "",
+                            "showQuestion": "1",
+                            "pageIndex": "6"
+                        }
+                    },
+                    {
+                        "commentInfo": {
+                            "userNickName": "sasha_yu13",
+                            "userImgURL": "https://storage.360buyimg.com/default.image/6a645f6465665f696d675f393836313931373632333134353936383338_sma.jpg",
+                            "commentId": "103403350153904513",
+                            "commentShareUrl": "https://share.m.jd.com/shareOrder/showSharePage.action?productId=13065559672&commentId=T6NdPcd0i5ktdR-FUqacxX6C",
+                            "wareAttribute": [
+                                {
+                                    "颜色": "推荐|成猫粮2kg"
+                                }
+                            ],
+                            "afterComment": {},
+                            "noCommentMessage": "用户未及时作出评价哦~",
+                            "haveLiked": "0",
+                            "imageStatusText": "",
+                            "iconList": [
+                                {
+                                    "iconId": "member",
+                                    "iconType": "0",
+                                    "iconTagId": "tab_3863",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                },
+                                {
+                                    "iconId": "shopBought",
+                                    "iconType": "3",
+                                    "iconTagId": "tab_3870",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                }
+                            ],
+                            "tagCommentContent": "日期很新鲜里面也有肉块，猫主子爱吃每次没赏脸一盆干光光～也没有呕吐\uD83E\uDD2E肠胃问题，属于常购清单了～京东物流很快值得信赖，下次还来。",
+                            "carTagInfo": "",
+                            "ownerStatus": "0",
+                            "productId": "13065559672",
+                            "buyCount": 3,
+                            "buyCountText": "该店铺购买≥2次",
+                            "commentDate": "2026-02-01 11:38:29",
+                            "commentScore": "5",
+                            "commentScoreText": "超赞",
+                            "praiseCnt": "0",
+                            "praiseText": "有用",
+                            "beforePraiseIcon": "https://img11.360buyimg.com/imagetools/jfs/t1/230919/21/2961/1669/6551f925Fd0b7b52d/d58d93a9f2a6a486.png",
+                            "afterPraiseIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225107/2/3274/4306/6551f925Fe5873551/6236a511983b6cd0.png",
+                            "replyText": "回复",
+                            "replyIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225614/12/1508/705/6551f925Fc2990067/ef456e65cae02b91.png",
+                            "replyCnt": "0",
+                            "commentData": "日期很新鲜里面也有肉块，猫主子爱吃每次没赏脸一盆干光光～也没有呕吐\uD83E\uDD2E肠胃问题，属于常购清单了～京东物流很快值得信赖，下次还来。",
+                            "pictureInfoList": [
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/393118/38/6783/1698337/697ecab4F4ccf131a/00a9900000e85222.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/393118/38/6783/1698337/697ecab4F4ccf131a/00a9900000e85222.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-2142052908",
+                                    "liveShooting": "0"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/392970/20/7168/3124122/697ecab5F40cfceb4/00a99000008eb65d.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/392970/20/7168/3124122/697ecab5F40cfceb4/00a99000008eb65d.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "197480678",
+                                    "liveShooting": "0"
+                                }
+                            ],
+                            "guid": "T6NdPcd0i5ktdR-FUqacxX6C",
+                            "maidianInfo": "6994;36281;36282_13065559671_全部_6_3_T6NdPcd0i5ktdR-FUqacxX6C_-100__-100",
+                            "testId": "cmt",
+                            "imageStatus": "1",
+                            "excellentCommentIcon": "",
+                            "officerLevel": "3",
+                            "productSpecifications": "已购 推荐|成猫粮2kg",
+                            "newCommentDate": "2026-02-01 11:38:29",
+                            "repurchaseInfo": "该店铺购买≥2次",
+                            "plusUrl": "https://img13.360buyimg.com/img/jfs/t1/401729/39/15386/4039/69b37ce0F74f0a3e7/0276060060dfbd27.png",
+                            "highlightList": [],
+                            "carOwner": "",
+                            "showQuestion": "1",
+                            "pageIndex": "6"
+                        }
+                    },
+                    {
+                        "commentInfo": {
+                            "userNickName": "霏比幸福",
+                            "userImgURL": "https://storage.360buyimg.com/i.imageUpload/6a645f3662326437656661393264393331363936353133393738333034_sma.jpg",
+                            "commentId": "103860100167254943",
+                            "commentShareUrl": "https://share.m.jd.com/shareOrder/showSharePage.action?productId=10098656892439&commentId=T6NdMcF3iZwtdRyBWaOcyXuC",
+                            "wareAttribute": [
+                                {
+                                    "颜色": "成猫4kg"
+                                }
+                            ],
+                            "afterComment": {},
+                            "noCommentMessage": "用户未及时作出评价哦~",
+                            "haveLiked": "0",
+                            "imageStatusText": "",
+                            "iconList": [
+                                {
+                                    "iconId": "member",
+                                    "iconType": "0",
+                                    "iconTagId": "tab_3865",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                },
+                                {
+                                    "iconId": "shopBought",
+                                    "iconType": "3",
+                                    "iconTagId": "tab_3871",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                }
+                            ],
+                            "tagCommentContent": "我家的三个毛孩子吃他家猫粮五年了，身体非常健康，这个小的是今年十月份捡的，也爱吃这猫粮，还会一直回购下去的",
+                            "carTagInfo": "",
+                            "ownerStatus": "0",
+                            "productId": "10098656892439",
+                            "buyCount": 38,
+                            "buyCountText": "该店铺购买≥10次",
+                            "commentDate": "2026-01-22 15:39:44",
+                            "commentScore": "5",
+                            "commentScoreText": "超赞",
+                            "praiseCnt": "0",
+                            "praiseText": "有用",
+                            "beforePraiseIcon": "https://img11.360buyimg.com/imagetools/jfs/t1/230919/21/2961/1669/6551f925Fd0b7b52d/d58d93a9f2a6a486.png",
+                            "afterPraiseIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225107/2/3274/4306/6551f925Fe5873551/6236a511983b6cd0.png",
+                            "replyText": "回复",
+                            "replyIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225614/12/1508/705/6551f925Fc2990067/ef456e65cae02b91.png",
+                            "replyCnt": "0",
+                            "commentData": "我家的三个毛孩子吃他家猫粮五年了，身体非常健康，这个小的是今年十月份捡的，也爱吃这猫粮，还会一直回购下去的",
+                            "pictureInfoList": [
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/386599/38/16347/58798/6971d43fF59bef1f6/00a95003c8943e73.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/386599/38/16347/58798/6971d43fF59bef1f6/00a95003c8943e73.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-1805910060",
+                                    "liveShooting": "0"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/391398/20/4672/182384/6971d43fFf80a1592/00a94ff6aa9076dc.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/391398/20/4672/182384/6971d43fFf80a1592/00a94ff6aa9076dc.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-258656902",
+                                    "liveShooting": "0"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/392271/33/2315/2850197/6971d43fF65012a19/00a9d8c0001b5bc9.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/392271/33/2315/2850197/6971d43fF65012a19/00a9d8c0001b5bc9.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-1499576912",
+                                    "liveShooting": "0"
+                                }
+                            ],
+                            "guid": "T6NdMcF3iZwtdRyBWaOcyXuC",
+                            "maidianInfo": "6994;36281;36282_13065559671_全部_6_4_T6NdMcF3iZwtdRyBWaOcyXuC_-100__-100",
+                            "testId": "cmt",
+                            "imageStatus": "1",
+                            "excellentCommentIcon": "",
+                            "officerLevel": "0",
+                            "productSpecifications": "已购 成猫4kg",
+                            "newCommentDate": "2026-01-22 15:39:44",
+                            "repurchaseInfo": "该店铺购买≥10次",
+                            "highlightList": [],
+                            "carOwner": "",
+                            "showQuestion": "1",
+                            "pageIndex": "6"
+                        }
+                    },
+                    {
+                        "commentInfo": {
+                            "userNickName": "u***z",
+                            "userImgURL": "https://storage.360buyimg.com/default.image/6a645f6465665f696d675f393836323331373632333134353936333334_sma.jpg",
+                            "commentId": "104342070177553841",
+                            "commentShareUrl": "https://share.m.jd.com/shareOrder/showSharePage.action?productId=10098656892439&commentId=T6NaOsN1iJstdR2BXqObyHuA",
+                            "wareAttribute": [
+                                {
+                                    "颜色": "成猫4kg"
+                                }
+                            ],
+                            "afterComment": {},
+                            "noCommentMessage": "用户未及时作出评价哦~",
+                            "haveLiked": "0",
+                            "imageStatusText": "",
+                            "iconList": [
+                                {
+                                    "iconId": "member",
+                                    "iconType": "0",
+                                    "iconTagId": "tab_3863",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                },
+                                {
+                                    "iconId": "shopBought",
+                                    "iconType": "3",
+                                    "iconTagId": "tab_3870",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                }
+                            ],
+                            "tagCommentContent": "这款商品特别不错，我家的猫咪特别喜欢吃，已经吃了好几年了，一直吃的是这一款猫粮营营养也够吃的老胖了。小猫咪现在它挺胖的，推荐大家购买",
+                            "carTagInfo": "",
+                            "ownerStatus": "0",
+                            "productId": "10098656892439",
+                            "buyCount": 4,
+                            "buyCountText": "该店铺购买≥2次",
+                            "commentDate": "2026-03-14 16:22:56",
+                            "commentScore": "5",
+                            "commentScoreText": "超赞",
+                            "praiseCnt": "0",
+                            "praiseText": "有用",
+                            "beforePraiseIcon": "https://img11.360buyimg.com/imagetools/jfs/t1/230919/21/2961/1669/6551f925Fd0b7b52d/d58d93a9f2a6a486.png",
+                            "afterPraiseIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225107/2/3274/4306/6551f925Fe5873551/6236a511983b6cd0.png",
+                            "replyText": "回复",
+                            "replyIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225614/12/1508/705/6551f925Fc2990067/ef456e65cae02b91.png",
+                            "replyCnt": "0",
+                            "commentData": "这款商品特别不错，我家的猫咪特别喜欢吃，已经吃了好几年了，一直吃的是这一款猫粮营营养也够吃的老胖了。小猫咪现在它挺胖的，推荐大家购买",
+                            "pictureInfoList": [
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/404216/20/1616/158554/69b51adeF1a83ddfd/00a94d889ca6ea46.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/404216/20/1616/158554/69b51adeF1a83ddfd/00a94d889ca6ea46.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-2041753609",
+                                    "liveShooting": "1"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/398137/10/20715/158456/69b51adfF45416be7/00a94d889c77e332.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/398137/10/20715/158456/69b51adfF45416be7/00a94d889c77e332.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "183207026",
+                                    "liveShooting": "1"
+                                }
+                            ],
+                            "guid": "T6NaOsN1iJstdR2BXqObyHuA",
+                            "maidianInfo": "6994;36281;36282_13065559671_全部_6_5_T6NaOsN1iJstdR2BXqObyHuA_-100__-100",
+                            "testId": "cmt",
+                            "imageStatus": "1",
+                            "excellentCommentIcon": "",
+                            "officerLevel": "2",
+                            "productSpecifications": "已购 成猫4kg",
+                            "newCommentDate": "2026-03-14 16:22:56",
+                            "repurchaseInfo": "该店铺购买≥2次",
+                            "plusUrl": "https://img13.360buyimg.com/img/jfs/t1/401729/39/15386/4039/69b37ce0F74f0a3e7/0276060060dfbd27.png",
+                            "highlightList": [],
+                            "carOwner": "",
+                            "showQuestion": "1",
+                            "pageIndex": "6"
+                        }
+                    },
+                    {
+                        "commentInfo": {
+                            "userNickName": "清风居士2008",
+                            "userImgURL": "https://storage.360buyimg.com/default.image/6a645f6465665f696d675f393836313831373632333134353936363836_sma.jpg",
+                            "commentId": "103681990166218056",
+                            "commentShareUrl": "https://share.m.jd.com/shareOrder/showSharePage.action?productId=13065559672&commentId=T6NdP892gZUtdRyAWaeQwHqH",
+                            "wareAttribute": [
+                                {
+                                    "颜色": "推荐|成猫粮2kg"
+                                }
+                            ],
+                            "afterComment": {},
+                            "noCommentMessage": "用户未及时作出评价哦~",
+                            "haveLiked": "0",
+                            "imageStatusText": "",
+                            "iconList": [
+                                {
+                                    "iconId": "member",
+                                    "iconType": "0",
+                                    "iconTagId": "tab_3863",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                },
+                                {
+                                    "iconId": "shoppingBoss",
+                                    "iconType": "4",
+                                    "iconTagId": "tab_3852",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                }
+                            ],
+                            "tagCommentContent": "富含冻干、肉粒。毛孩子很爱吃。从小不点到现在六岁多，一直吃这个牌子的猫粮。毛孩子很健康。价格也不贵，趁着活动，抓紧入手吧！",
+                            "carTagInfo": "",
+                            "ownerStatus": "0",
+                            "productId": "13065559672",
+                            "buyCount": 1,
+                            "buyCountText": "",
+                            "commentDate": "2026-01-26 21:33:40",
+                            "commentScore": "5",
+                            "commentScoreText": "超赞",
+                            "praiseCnt": "0",
+                            "praiseText": "有用",
+                            "beforePraiseIcon": "https://img11.360buyimg.com/imagetools/jfs/t1/230919/21/2961/1669/6551f925Fd0b7b52d/d58d93a9f2a6a486.png",
+                            "afterPraiseIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225107/2/3274/4306/6551f925Fe5873551/6236a511983b6cd0.png",
+                            "replyText": "回复",
+                            "replyIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225614/12/1508/705/6551f925Fc2990067/ef456e65cae02b91.png",
+                            "replyCnt": "0",
+                            "commentData": "富含冻干、肉粒。毛孩子很爱吃。从小不点到现在六岁多，一直吃这个牌子的猫粮。毛孩子很健康。价格也不贵，趁着活动，抓紧入手吧！",
+                            "pictureInfoList": [
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/386716/30/19531/94916/69776d33F8c79e767/00a92d0500a1c2eb.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/386716/30/19531/94916/69776d33F8c79e767/00a92d0500a1c2eb.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-479230301",
+                                    "liveShooting": "1"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/390931/34/7175/67837/69776d33F682b707d/00a92d05006c2688.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/390931/34/7175/67837/69776d33F682b707d/00a92d05006c2688.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-1114529241",
+                                    "liveShooting": "1"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/387354/16/17793/119418/69776d33F5f371cae/00a92d0500a28a0e.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/387354/16/17793/119418/69776d33F5f371cae/00a92d0500a28a0e.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "1216585857",
+                                    "liveShooting": "1"
+                                }
+                            ],
+                            "guid": "T6NdP892gZUtdRyAWaeQwHqH",
+                            "maidianInfo": "6994;36281;36282_13065559671_全部_6_6_T6NdP892gZUtdRyAWaeQwHqH_-100__-100",
+                            "testId": "cmt",
+                            "imageStatus": "1",
+                            "excellentCommentIcon": "",
+                            "officerLevel": "2",
+                            "productSpecifications": "已购 推荐|成猫粮2kg",
+                            "newCommentDate": "2026-01-26 21:33:40",
+                            "repurchaseInfo": "",
+                            "plusUrl": "https://img13.360buyimg.com/img/jfs/t1/401729/39/15386/4039/69b37ce0F74f0a3e7/0276060060dfbd27.png",
+                            "highlightList": [],
+                            "carOwner": "",
+                            "showQuestion": "1",
+                            "pageIndex": "6"
+                        }
+                    },
+                    {
+                        "commentInfo": {
+                            "userNickName": "j***d",
+                            "userImgURL": "https://storage.360buyimg.com/default.image/6a645f6465665f696d675f393836323031373632333134353936313533_sma.jpg",
+                            "commentId": "104070590171809511",
+                            "commentShareUrl": "https://share.m.jd.com/shareOrder/showSharePage.action?productId=13065559672&commentId=T6NaOcB3jZUtdR2HU6aRxX6A",
+                            "wareAttribute": [
+                                {
+                                    "颜色": "推荐|成猫粮2kg"
+                                }
+                            ],
+                            "afterComment": {},
+                            "noCommentMessage": "用户未及时作出评价哦~",
+                            "haveLiked": "0",
+                            "imageStatusText": "",
+                            "iconList": [
+                                {
+                                    "iconId": "member",
+                                    "iconType": "0",
+                                    "iconTagId": "tab_3863",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                },
+                                {
+                                    "iconId": "shopBought",
+                                    "iconType": "3",
+                                    "iconTagId": "tab_3870",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                }
+                            ],
+                            "tagCommentContent": "这款猫粮我已经是多次购买了，我家的猫咪很喜欢吃的，每次看见我就颠颠跑过来，知道我要给它猫粮了，和我非常亲，就因为爱吃这个猫粮，非常赞",
+                            "carTagInfo": "",
+                            "ownerStatus": "0",
+                            "productId": "13065559672",
+                            "buyCount": 8,
+                            "buyCountText": "该店铺购买≥2次",
+                            "commentDate": "2026-02-12 17:23:44",
+                            "commentScore": "5",
+                            "commentScoreText": "超赞",
+                            "praiseCnt": "0",
+                            "praiseText": "有用",
+                            "beforePraiseIcon": "https://img11.360buyimg.com/imagetools/jfs/t1/230919/21/2961/1669/6551f925Fd0b7b52d/d58d93a9f2a6a486.png",
+                            "afterPraiseIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225107/2/3274/4306/6551f925Fe5873551/6236a511983b6cd0.png",
+                            "replyText": "回复",
+                            "replyIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225614/12/1508/705/6551f925Fc2990067/ef456e65cae02b91.png",
+                            "replyCnt": "0",
+                            "commentData": "这款猫粮我已经是多次购买了，我家的猫咪很喜欢吃的，每次看见我就颠颠跑过来，知道我要给它猫粮了，和我非常亲，就因为爱吃这个猫粮，非常赞",
+                            "pictureInfoList": [
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/395240/33/8170/111428/698d9c1fFc90c87a7/00a9438780c153a8.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/395240/33/8170/111428/698d9c1fFc90c87a7/00a9438780c153a8.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "1742627954",
+                                    "liveShooting": "1"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/394131/38/10866/60676/698d9c20Fdbf503e1/00a9438780c2d6e3.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/394131/38/10866/60676/698d9c20Fdbf503e1/00a9438780c2d6e3.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-534552185",
+                                    "liveShooting": "1"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/390651/5/21658/97522/698d9c1fFd96efa19/00a9438780038657.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/390651/5/21658/97522/698d9c1fFd96efa19/00a9438780038657.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "800402965",
+                                    "liveShooting": "1"
+                                }
+                            ],
+                            "guid": "T6NaOcB3jZUtdR2HU6aRxX6A",
+                            "maidianInfo": "6994;36281;36282_13065559671_全部_6_7_T6NaOcB3jZUtdR2HU6aRxX6A_-100__-100",
+                            "testId": "cmt",
+                            "imageStatus": "1",
+                            "excellentCommentIcon": "",
+                            "officerLevel": "2",
+                            "productSpecifications": "已购 推荐|成猫粮2kg",
+                            "newCommentDate": "2026-02-12 17:23:44",
+                            "repurchaseInfo": "该店铺购买≥2次",
+                            "highlightList": [],
+                            "carOwner": "",
+                            "showQuestion": "1",
+                            "pageIndex": "6"
+                        }
+                    },
+                    {
+                        "commentInfo": {
+                            "userNickName": "小***9",
+                            "userImgURL": "https://storage.360buyimg.com/i.imageUpload/7a78636465313731333833383236383733383233_sma.jpg",
+                            "commentId": "103424300154639585",
+                            "commentShareUrl": "https://share.m.jd.com/shareOrder/showSharePage.action?productId=69673075023&commentId=T6NdPcVzi5wtdR-CXaWRxXeE",
+                            "wareAttribute": [
+                                {
+                                    "颜色": "成猫粮10kg"
+                                }
+                            ],
+                            "afterComment": {},
+                            "noCommentMessage": "用户未及时作出评价哦~",
+                            "haveLiked": "0",
+                            "imageStatusText": "",
+                            "iconList": [
+                                {
+                                    "iconId": "member",
+                                    "iconType": "0",
+                                    "iconTagId": "tab_3863",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                },
+                                {
+                                    "iconId": "shopBought",
+                                    "iconType": "3",
+                                    "iconTagId": "tab_3871",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                }
+                            ],
+                            "tagCommentContent": "麦富迪这个品牌的宠物零食，我们经常购买这款猫粮的性价比非常的高，适口性还非常的好。家里的猫和流浪猫都非常的喜欢，以后还会继续购买",
+                            "carTagInfo": "",
+                            "ownerStatus": "0",
+                            "productId": "69673075023",
+                            "buyCount": 40,
+                            "buyCountText": "该店铺购买≥10次",
+                            "commentDate": "2026-01-28 13:07:48",
+                            "commentScore": "5",
+                            "commentScoreText": "超赞",
+                            "praiseCnt": "0",
+                            "praiseText": "有用",
+                            "beforePraiseIcon": "https://img11.360buyimg.com/imagetools/jfs/t1/230919/21/2961/1669/6551f925Fd0b7b52d/d58d93a9f2a6a486.png",
+                            "afterPraiseIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225107/2/3274/4306/6551f925Fe5873551/6236a511983b6cd0.png",
+                            "replyText": "回复",
+                            "replyIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225614/12/1508/705/6551f925Fc2990067/ef456e65cae02b91.png",
+                            "replyCnt": "0",
+                            "commentData": "麦富迪这个品牌的宠物零食，我们经常购买这款猫粮的性价比非常的高，适口性还非常的好。家里的猫和流浪猫都非常的喜欢，以后还会继续购买",
+                            "pictureInfoList": [
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/387848/9/15734/86184/697999a3F64265232/00a94929e49613f5.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/387848/9/15734/86184/697999a3F64265232/00a94929e49613f5.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "499393439",
+                                    "liveShooting": "0"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/384812/25/22760/248299/697999a4Fa065ac84/00a95e87e06da12e.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/384812/25/22760/248299/697999a4Fa065ac84/00a95e87e06da12e.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "729914956",
+                                    "liveShooting": "0"
+                                }
+                            ],
+                            "guid": "T6NdPcVzi5wtdR-CXaWRxXeE",
+                            "maidianInfo": "6994;36281;36282_13065559671_全部_6_8_T6NdPcVzi5wtdR-CXaWRxXeE_-100__-100",
+                            "testId": "cmt",
+                            "imageStatus": "1",
+                            "excellentCommentIcon": "",
+                            "officerLevel": "2",
+                            "productSpecifications": "已购 成猫粮10kg",
+                            "newCommentDate": "2026-01-28 13:07:48",
+                            "repurchaseInfo": "该店铺购买≥10次",
+                            "plusUrl": "https://img13.360buyimg.com/img/jfs/t1/401729/39/15386/4039/69b37ce0F74f0a3e7/0276060060dfbd27.png",
+                            "highlightList": [],
+                            "carOwner": "",
+                            "showQuestion": "1",
+                            "pageIndex": "6"
+                        }
+                    },
+                    {
+                        "commentInfo": {
+                            "userNickName": "ftyzz",
+                            "userImgURL": "https://storage.360buyimg.com/default.image/6a645f6465665f696d675f393836323231373632333134353936353430_sma.jpg",
+                            "commentId": "103821110168039618",
+                            "commentShareUrl": "https://share.m.jd.com/shareOrder/showSharePage.action?productId=13065559671&commentId=T6NdMcV2iZ0tdRyOW6WRxn6J",
+                            "wareAttribute": [
+                                {
+                                    "颜色": "成猫粮6kg（2kg*3）"
+                                }
+                            ],
+                            "afterComment": {},
+                            "noCommentMessage": "用户未及时作出评价哦~",
+                            "haveLiked": "0",
+                            "imageStatusText": "",
+                            "iconList": [
+                                {
+                                    "iconId": "member",
+                                    "iconType": "0",
+                                    "iconTagId": "tab_3863",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                },
+                                {
+                                    "iconId": "shopBought",
+                                    "iconType": "3",
+                                    "iconTagId": "tab_3870",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                }
+                            ],
+                            "tagCommentContent": "麦富迪猫粮真的让我家猫变了样！毛发肉眼可见地变亮变顺了，掉毛也少多了。适口性特别好，每次倒粮它都冲过来。看了配料表很干净，没有乱七八糟的添加，吃着放心。已经回购好几次了，会一直支持！",
+                            "carTagInfo": "",
+                            "ownerStatus": "0",
+                            "productId": "13065559671",
+                            "buyCount": 7,
+                            "buyCountText": "该店铺购买≥2次",
+                            "commentDate": "2026-02-02 10:40:20",
+                            "commentScore": "5",
+                            "commentScoreText": "超赞",
+                            "praiseCnt": "1",
+                            "praiseText": "有用",
+                            "beforePraiseIcon": "https://img11.360buyimg.com/imagetools/jfs/t1/230919/21/2961/1669/6551f925Fd0b7b52d/d58d93a9f2a6a486.png",
+                            "afterPraiseIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225107/2/3274/4306/6551f925Fe5873551/6236a511983b6cd0.png",
+                            "replyText": "回复",
+                            "replyIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225614/12/1508/705/6551f925Fc2990067/ef456e65cae02b91.png",
+                            "replyCnt": "0",
+                            "commentData": "麦富迪猫粮真的让我家猫变了样！毛发肉眼可见地变亮变顺了，掉毛也少多了。适口性特别好，每次倒粮它都冲过来。看了配料表很干净，没有乱七八糟的添加，吃着放心。已经回购好几次了，会一直支持！",
+                            "pictureInfoList": [
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/394394/23/2499/23873/69800e93F99f153ed/00a918318316c248.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/394394/23/2499/23873/69800e93F99f153ed/00a918318316c248.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "2043209291",
+                                    "liveShooting": "0"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/389586/33/11641/22201/69800e93Fe52fa771/00a9144144709f95.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/389586/33/11641/22201/69800e93Fe52fa771/00a9144144709f95.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "1561225680",
+                                    "liveShooting": "0"
+                                }
+                            ],
+                            "guid": "T6NdMcV2iZ0tdRyOW6WRxn6J",
+                            "maidianInfo": "6994;36281;36282_13065559671_全部_6_9_T6NdMcV2iZ0tdRyOW6WRxn6J_-100__-100",
+                            "testId": "cmt",
+                            "imageStatus": "1",
+                            "excellentCommentIcon": "",
+                            "officerLevel": "2",
+                            "productSpecifications": "已购 成猫粮6kg（2kg*3）",
+                            "newCommentDate": "2026-02-02 10:40:20",
+                            "repurchaseInfo": "该店铺购买≥2次",
+                            "plusUrl": "https://img13.360buyimg.com/img/jfs/t1/401729/39/15386/4039/69b37ce0F74f0a3e7/0276060060dfbd27.png",
+                            "highlightList": [],
+                            "carOwner": "",
+                            "showQuestion": "1",
+                            "pageIndex": "6"
+                        }
+                    },
+                    {
+                        "commentInfo": {
+                            "userNickName": "小***咪",
+                            "userImgURL": "https://storage.360buyimg.com/i.imageUpload/6a645f3464316366353762323761353431363530353036333935353231_sma.jpg",
+                            "commentId": "103661020164965875",
+                            "commentShareUrl": "https://share.m.jd.com/shareOrder/showSharePage.action?productId=13065559672&commentId=T6NdP8F2iJ4tdRyCUqCdyHiE",
+                            "wareAttribute": [
+                                {
+                                    "颜色": "推荐|成猫粮2kg"
+                                }
+                            ],
+                            "afterComment": {},
+                            "noCommentMessage": "用户未及时作出评价哦~",
+                            "haveLiked": "0",
+                            "imageStatusText": "",
+                            "iconList": [
+                                {
+                                    "iconId": "member",
+                                    "iconType": "0",
+                                    "iconTagId": "tab_3863",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                },
+                                {
+                                    "iconId": "shopBought",
+                                    "iconType": "3",
+                                    "iconTagId": "tab_3870",
+                                    "iconJumpUrl": "",
+                                    "iconTagType": "",
+                                    "iconHigh": "14"
+                                }
+                            ],
+                            "tagCommentContent": "已经购买很多次了，这款你的蓝猫挺喜欢吃的，养的胖胖的性价比比较高，猫咪爱吃不过就是没有活动的时候卖，买着还挺贵的，希望多点活动",
+                            "carTagInfo": "",
+                            "ownerStatus": "0",
+                            "productId": "13065559672",
+                            "buyCount": 5,
+                            "buyCountText": "该店铺购买≥2次",
+                            "commentDate": "2026-01-23 10:58:13",
+                            "commentScore": "5",
+                            "commentScoreText": "超赞",
+                            "praiseCnt": "0",
+                            "praiseText": "有用",
+                            "beforePraiseIcon": "https://img11.360buyimg.com/imagetools/jfs/t1/230919/21/2961/1669/6551f925Fd0b7b52d/d58d93a9f2a6a486.png",
+                            "afterPraiseIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225107/2/3274/4306/6551f925Fe5873551/6236a511983b6cd0.png",
+                            "replyText": "回复",
+                            "replyIcon": "https://img10.360buyimg.com/imagetools/jfs/t1/225614/12/1508/705/6551f925Fc2990067/ef456e65cae02b91.png",
+                            "replyCnt": "0",
+                            "commentData": "已经购买很多次了，这款你的蓝猫挺喜欢吃的，养的胖胖的性价比比较高，猫咪爱吃不过就是没有活动的时候卖，买着还挺贵的，希望多点活动",
+                            "pictureInfoList": [
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/386176/2/18744/1874533/6972e3c3Fdbdfe91b/00a9c0000011ab29.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/386176/2/18744/1874533/6972e3c3Fdbdfe91b/00a9c0000011ab29.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "-1538912995",
+                                    "liveShooting": "0"
+                                },
+                                {
+                                    "picURL": "https://img30.360buyimg.com/shaidan/s300x300_jfs/t1/388625/19/10884/1855479/6972e3c4F8348c762/00a9c00000054d90.jpg.dpg",
+                                    "largePicURL": "https://img30.360buyimg.com/shaidan/s1080x1080_jfs/t1/388625/19/10884/1855479/6972e3c4F8348c762/00a9c00000054d90.jpg.dpg",
+                                    "mediaType": "1",
+                                    "showOrderMediaId": "978631424",
+                                    "liveShooting": "0"
+                                }
+                            ],
+                            "guid": "T6NdP8F2iJ4tdRyCUqCdyHiE",
+                            "maidianInfo": "6994;36281;36282_13065559671_全部_6_10_T6NdP8F2iJ4tdRyCUqCdyHiE_-100__-100",
+                            "testId": "cmt",
+                            "imageStatus": "1",
+                            "excellentCommentIcon": "",
+                            "officerLevel": "3",
+                            "productSpecifications": "已购 推荐|成猫粮2kg",
+                            "newCommentDate": "2026-01-23 10:58:13",
+                            "repurchaseInfo": "该店铺购买≥2次",
+                            "plusUrl": "https://img13.360buyimg.com/img/jfs/t1/401729/39/15386/4039/69b37ce0F74f0a3e7/0276060060dfbd27.png",
+                            "highlightList": [],
+                            "carOwner": "",
+                            "showQuestion": "1",
+                            "pageIndex": "6"
+                        }
+                    }
+                ]
+            },
+            {
+                "floorId": "flo_15000",
+                "type": "eCustom",
+                "mId": "commentlist-mixlabel",
+                "tmpId": "Mixlabel",
+                "cf": {
+                    "st": {
+                        "bgc": "#fff"
+                    }
+                },
+                "data": {
+                    "mixTagList": [
+                        {
+                            "name": "全部",
+                            "identification": "ALL",
+                            "exposureEventId": "",
+                            "count": "500000",
+                            "type": "0",
+                            "sort": "1",
+                            "isShowZeroTag": false,
+                            "isDefaultTag": true,
+                            "countStr": "99%好评",
+                            "countText": "99%好评",
+                            "supportDefaultSort": true,
+                            "supportNewSort": true,
+                            "showTopBar": true,
+                            "showFoldComment": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": false
+                        },
+                        {
+                            "name": "图/视频",
+                            "identification": "SHAITU",
+                            "exposureEventId": "",
+                            "count": "10000",
+                            "type": "102",
+                            "sort": "3",
+                            "isShowZeroTag": false,
+                            "isDefaultTag": false,
+                            "countStr": "1万+",
+                            "countText": "1万+",
+                            "supportDefaultSort": true,
+                            "supportNewSort": true,
+                            "showTopBar": true,
+                            "showFoldComment": false,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": false
+                        },
+                        {
+                            "name": "图/视频",
+                            "identification": "YOUTU",
+                            "exposureEventId": "",
+                            "count": "10000",
+                            "type": "4",
+                            "sort": "4",
+                            "isShowZeroTag": false,
+                            "isDefaultTag": true,
+                            "countStr": "1万+",
+                            "countText": "1万+",
+                            "supportDefaultSort": true,
+                            "supportNewSort": true,
+                            "showTopBar": true,
+                            "showFoldComment": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": false
+                        },
+                        {
+                            "name": "追评",
+                            "identification": "ZHUIPING",
+                            "exposureEventId": "CommentsShare_CommentListLabelExpo",
+                            "count": "200",
+                            "type": "5",
+                            "sort": "5",
+                            "isShowZeroTag": false,
+                            "isDefaultTag": true,
+                            "countStr": "200+",
+                            "countText": "200+",
+                            "supportDefaultSort": true,
+                            "supportNewSort": true,
+                            "showTopBar": true,
+                            "showFoldComment": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": false
+                        },
+                        {
+                            "id": "75d3684ddfc738750ec24a596b4a14e0##V10003T42",
+                            "tagId": "75d3684ddfc738750ec24a596b4a14e0##V10003T42",
+                            "name": "猫猫超爱吃",
+                            "count": "2698",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "2698",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "789f5db8d6fbeeccc610c611ec122ac0##V10003T42",
+                            "tagId": "789f5db8d6fbeeccc610c611ec122ac0##V10003T42",
+                            "name": "毛发更亮泽",
+                            "count": "406",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "406",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "5105af7381168a16cf2daa7e99f98a99##V10003T42",
+                            "tagId": "5105af7381168a16cf2daa7e99f98a99##V10003T42",
+                            "name": "大便正常",
+                            "count": "417",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "417",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "65ed6384787a76605ceeeb91eebd7b94##V10003T42",
+                            "tagId": "65ed6384787a76605ceeeb91eebd7b94##V10003T42",
+                            "name": "幼猫适用",
+                            "count": "71",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "71",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "f623b19f8dcd2c9f32f3aa69589d40c1##V10003T42",
+                            "tagId": "f623b19f8dcd2c9f32f3aa69589d40c1##V10003T42",
+                            "name": "味道超香",
+                            "count": "450",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "450",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "34cb6cb6d124a99ceb996f99f160bfc9##V10003T42",
+                            "tagId": "34cb6cb6d124a99ceb996f99f160bfc9##V10003T42",
+                            "name": "颗粒大小合适",
+                            "count": "621",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "621",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "a3faae02a3bc10c6f4b9288354abf92b##V10003T42",
+                            "tagId": "a3faae02a3bc10c6f4b9288354abf92b##V10003T42",
+                            "name": "冻干超爱吃",
+                            "count": "30",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "30",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "d3f7ea2a64306b7f0d35494003d09e29##V10003T42",
+                            "tagId": "d3f7ea2a64306b7f0d35494003d09e29##V10003T42",
+                            "name": "营养丰富",
+                            "count": "291",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "291",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "fb25ec53cd1eb16800285a7ed093038a##V10003T42",
+                            "tagId": "fb25ec53cd1eb16800285a7ed093038a##V10003T42",
+                            "name": "成猫适用",
+                            "count": "31",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "31",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "51592f3eaf5193debead6a3ea5128b26##V10003T42",
+                            "tagId": "51592f3eaf5193debead6a3ea5128b26##V10003T42",
+                            "name": "颗粒易吞咽",
+                            "count": "5",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "5",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "a5a397fa780bf94b371794b5cff12060##V10003T42",
+                            "tagId": "a5a397fa780bf94b371794b5cff12060##V10003T42",
+                            "name": "猫吃不腻",
+                            "count": "18",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "18",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "id": "e5e7dfcaa9d269e385780eafefc95fed##V10003T42",
+                            "tagId": "e5e7dfcaa9d269e385780eafefc95fed##V10003T42",
+                            "name": "无黑下巴",
+                            "count": "4",
+                            "type": "0",
+                            "tagType": "4",
+                            "countText": "4",
+                            "showTopBar": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": true,
+                            "stand": "1",
+                            "ckeKeyWordBury": ""
+                        },
+                        {
+                            "name": "好评",
+                            "identification": "GOOD",
+                            "exposureEventId": "",
+                            "count": "20000",
+                            "type": "3",
+                            "sort": "6",
+                            "isShowZeroTag": false,
+                            "isDefaultTag": true,
+                            "countStr": "2万+",
+                            "countText": "2万+",
+                            "supportDefaultSort": true,
+                            "supportNewSort": true,
+                            "showTopBar": true,
+                            "showFoldComment": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": false
+                        },
+                        {
+                            "name": "中评",
+                            "identification": "NORMAL",
+                            "exposureEventId": "",
+                            "count": "200",
+                            "type": "2",
+                            "sort": "7",
+                            "isShowZeroTag": false,
+                            "isDefaultTag": true,
+                            "countStr": "200+",
+                            "countText": "200+",
+                            "supportDefaultSort": true,
+                            "supportNewSort": true,
+                            "showTopBar": true,
+                            "showFoldComment": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": false
+                        },
+                        {
+                            "name": "差评",
+                            "identification": "BAD",
+                            "exposureEventId": "",
+                            "count": "200",
+                            "type": "1",
+                            "sort": "8",
+                            "isShowZeroTag": false,
+                            "isDefaultTag": true,
+                            "countStr": "200+",
+                            "countText": "200+",
+                            "supportDefaultSort": true,
+                            "supportNewSort": true,
+                            "showTopBar": true,
+                            "showFoldComment": true,
+                            "tagDesc": {
+                                "dialogDesc": "京东致力于为您提供合法、公正、客观、真实的评价晒单，将采取技术手段对恶意、虚假等不当评价进行处理，以便为您消费决策提供有效参考。",
+                                "icon": "",
+                                "dialogTitle": "京东评价原则",
+                                "jumpUrl": "https://comment.m.jd.com/m-rate/rate-rule",
+                                "dialogBtn": "我知道了",
+                                "clerk_type": "1",
+                                "desc": "京东鼓励真实、有用的评价"
+                            },
+                            "canBeFiltered": false
+                        }
+                    ],
+                    "tagRow": 2
+                }
+            }
+        ],
+        "pageInfo": {
+            "pageId": "tem_11095",
+            "name": "评价列表楼层化",
+            "data": {
+                "contentFoldRowNum": "6",
+                "shopReplyFoldRowNum": "2",
+                "testId": "cmt",
+                "isCloseCommentReply": "0",
+                "likeAnimation": "0",
+                "deepPageId": "1cff940ec9c236029653053edbfe3a32",
+                "isShowQuestion": true,
+                "isShowRectangleBubble": false,
+                "rectangleBubbleText": "没找到有用的？戳这里求助买过的人",
+                "timeoutNoClick": "2",
+                "pageNumShowBubble": "10",
+                "showPicCnt": "1万+",
+                "shaituCnt": "500",
+                "videoAutoPlaySwitch": "1",
+                "defaultGoodCountText": "MjAwMDAw5Liq55So5oi36buY6K6k6K+E5Lu35LqG6K+l5ZWG5ZOB",
+                "defaultGoodLogo": "https://m.360buyimg.com/mobilecms/jfs/t10447/176/1359340654/2177/9ceed2ba/59df1d27N55b368df.png",
+                "reportEntrance": "",
+                "tagStyle": "B",
+                "isShowRaderInfo": false,
+                "maxPage": "53",
+                "touchstone": {
+                    "touchstone_expids": [
+                        null,
+                        "tsabtest|base64|ZnJvbnRwcm9jZWR1cmVfMzE3MjJ8YmFzZQ|tsabtest",
+                        null,
+                        "tsabtest|base64|VUdDcHJvZHVjdF85MzQ1OXxUZXN0UHJlNDI6VUdDcHJvZHVjdF82MDE4OHxUZXN0OkFQUFNYXzgzMDQzfFRlc3Q|tsabtest"
+                    ],
+                    "cid3": "36282",
+                    "skuid": "13065559671"
+                },
+                "bottomBtnStyle": "b",
+                "cardStyle": "b",
+                "replyTextWordLimit": "800",
+                "selectEntranceTxt": "选择款式",
+                "currentSkuStatus": "2",
+                "selectEntrance": "0",
+                "style": "1",
+                "hasNextPage": true
+            }
+        }
+    }
+}

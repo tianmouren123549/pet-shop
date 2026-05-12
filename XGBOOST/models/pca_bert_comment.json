@@ -1,0 +1,7 @@
+{
+  "bert_model": "C:\\Users\\1\\.cache\\huggingface\\hub\\models--bert-base-chinese\\snapshots\\8f23c25b06e129b6c986331a13d8d025a92cf0ea",
+  "n_pca": 64,
+  "explained_variance_ratio_sum": 0.7656428217887878,
+  "comment_rows": 3119,
+  "products_with_pca": 178
+}

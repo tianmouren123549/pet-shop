@@ -1,0 +1,25 @@
+{
+  "categorical_features": [
+    "category"
+  ],
+  "numerical_features": [
+    "review_cnt",
+    "avg_text_len",
+    "positive_rate",
+    "negative_rate",
+    "sentiment_中评_rate",
+    "sentiment_好评_rate",
+    "sentiment_差评_rate",
+    "intent_价格优惠_rate",
+    "intent_售后退换_rate",
+    "intent_商品反馈_rate",
+    "intent_商品咨询_rate",
+    "intent_喂养咨询_rate",
+    "intent_未知意图_rate",
+    "intent_物流发货_rate",
+    "user_order_cnt"
+  ],
+  "auc": 0.5,
+  "test_size": 0.2,
+  "random_state": 42
+}

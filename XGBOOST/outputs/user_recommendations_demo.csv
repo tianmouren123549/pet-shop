@@ -1,0 +1,6 @@
+﻿user_id,product_id,model_version,score,rank_no,reason_json
+1,1681975,xgb_user_item_v1,0.2177572399377823,1,"{""source"": ""xgb_user_item""}"
+1,1682006,xgb_user_item_v1,0.2177572399377823,2,"{""source"": ""xgb_user_item""}"
+1,3197317,xgb_user_item_v1,0.2177572399377823,3,"{""source"": ""xgb_user_item""}"
+1,3197421,xgb_user_item_v1,0.2177572399377823,4,"{""source"": ""xgb_user_item""}"
+1,3197429,xgb_user_item_v1,0.2177572399377823,5,"{""source"": ""xgb_user_item""}"

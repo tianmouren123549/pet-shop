@@ -1,0 +1,13 @@
+{
+  "categorical_features": [
+    "category",
+    "intent_label",
+    "sentiment_label"
+  ],
+  "numerical_features": [
+    "text_len"
+  ],
+  "test_size": 0.2,
+  "random_state": 42,
+  "auc": 0.9689889374839208
+}

@@ -1,0 +1,43 @@
+# =============================================================================
+# 毕业设计_模型训练 — 版本库/打包说明
+# =============================================================================
+#
+# 【CSV】本文件不添加任何「*.csv」全局忽略。以下路径中的表格数据请照常提交/上传：
+#   - XGBOOST/data/*.csv
+#   - XGBOOST/outputs/*.csv（若体积过大可自行改为打包时排除，勿在此写死 *.csv）
+#   - BERT 根目录及 爬虫 下你用于论文/复现的 *.csv
+#
+# 【模型】演示用本地大权重；提交包只保留轻量 demo（见下方忽略规则）。
+# =============================================================================
+
+# ---- Python 安装包（wheel 单个常 1～3GB，勿放进仓库；用 pip 装或放网盘）----
+*.whl
+
+# ---- Python / 虚拟环境 / IDE ----
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+.venv*/
+venv/
+.idea/
+
+# ---- XGBoost：大体积训练产物（保留 xgb_user_item_demo 供提交）----
+/XGBOOST/models/xgb_user_item_v1/
+/XGBOOST/models/xgb_user_item_v2/
+/XGBOOST/models/xgb_comment_ranker/*.joblib
+/XGBOOST/models/pca_bert_comment.joblib
+
+# ---- BERT：训练成果中的权重文件（本机演示；小 json 仍可与代码一并提交）----
+/BERT/训练成果/**/*.bin
+/BERT/训练成果/**/*.safetensors
+/BERT/训练成果/**/pytorch_model*.bin
+
+# ---- 可选：若「原始爬取」单文件极大，取消注释以排除（不影响你已整理好的小 CSV）----
+# /BERT/爬虫/comments_raw_all.csv
+# /BERT/爬虫/comments_raw_all_current.csv
+
+# ---- 系统杂文件 ----
+.DS_Store
+Thumbs.db
