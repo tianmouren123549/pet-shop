@@ -1,0 +1,325 @@
+/**
+ * 商家端扁平布局：页面底色 + 1px 分割线，弱化圆角卡片与投影。
+ * 使用 .app .main.main-merchant 提高优先级，覆盖各页 scoped 样式（不改顶栏）。
+ */
+
+.app .main.main-merchant {
+  background: #f5f7f8;
+}
+
+.app .main.main-merchant :is(.admin-page, .dashboard, .merchant-page) {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.app .main.main-merchant .pw-page {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.app .main.main-merchant .pw-hero {
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.app .main.main-merchant .pw-section,
+.app .main.main-merchant .profile-card {
+  border-radius: 0;
+  box-shadow: none;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.app .main.main-merchant :is(table, .table),
+.app .main.main-merchant table.data-table {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant :is(table, .table) thead th {
+  background: #f5f5f5;
+}
+
+.app .main.main-merchant :is(.panel, .section, .card, .metric-card, .chart-section, .orders-section, .inventory-section) {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ---------- Dashboard ---------- */
+.app .main.main-merchant .dashboard {
+  background: #f5f7f8;
+  /* 横向留白由 .main--merchant-wide 承担 */
+  padding: 10px 0 28px;
+}
+
+.app .main.main-merchant .dashboard .metric-card {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e8eaed;
+  background: #ffffff;
+}
+
+.app .main.main-merchant .dashboard .metric-card-accent {
+  background: #fafafa;
+}
+
+.app .main.main-merchant .dashboard .chart-section {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e8eaed;
+}
+
+.app .main.main-merchant .dashboard .orders-card {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e8eaed;
+}
+
+.app .main.main-merchant .dashboard .inventory-section {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e8eaed;
+}
+
+.app .main.main-merchant .dashboard .critical-card {
+  border-radius: 0;
+  box-shadow: none;
+  background: #1e293b;
+  border: 1px solid #334155;
+}
+
+.app .main.main-merchant .dashboard .md-search,
+.app .main.main-merchant .dashboard .md-bell-btn {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.app .main.main-merchant .dashboard .dashboard-error {
+  border-radius: 0;
+}
+
+/* ---------- 订单管理 ---------- */
+.app .main.main-merchant .orders-dash {
+  max-width: none;
+  margin: 0;
+  padding: 12px 16px 28px;
+  background: #f0f2f5;
+}
+
+.app .main.main-merchant .orders-dash .stat-card {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .orders-dash .mo-panel {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .orders-dash .mo-panel-head {
+  background: #fafafa;
+  border-bottom-color: #e5e7eb;
+}
+
+.app .main.main-merchant .orders-dash .mo-search,
+.app .main.main-merchant .orders-dash .mo-search--hero {
+  box-shadow: none;
+  border-radius: 4px;
+}
+
+.app .main.main-merchant .orders-dash .mo-chip {
+  box-shadow: none;
+  border-radius: 4px;
+}
+
+.app .main.main-merchant .orders-dash .mo-btn-refresh {
+  border-radius: 4px;
+}
+
+.app .main.main-merchant .orders-dash .mo-toolbar {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+/* ---------- 商品管理 ---------- */
+.app .main.main-merchant .inv-matrix {
+  max-width: none;
+  margin: 0;
+  padding: 12px 16px 28px;
+  background: #f0f2f5;
+}
+
+.app .main.main-merchant .inv-matrix .inv-search {
+  box-shadow: none;
+  border-radius: 4px;
+}
+
+.app .main.main-merchant .inv-matrix .inv-select {
+  border-radius: 4px;
+}
+
+.app .main.main-merchant .inv-matrix .inv-btn-primary,
+.app .main.main-merchant .inv-matrix .inv-btn-secondary {
+  border-radius: 4px;
+}
+
+.app .main.main-merchant .inv-matrix .inv-btn-primary {
+  box-shadow: none;
+}
+
+.app .main.main-merchant .inv-matrix .inv-panel,
+.app .main.main-merchant .inv-matrix .inv-table-card {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+/* ---------- 用户咨询 ---------- */
+.app .main.main-merchant .msw-support-page {
+  background: transparent;
+}
+
+.app .main.main-merchant .msw-support-page .msw-workbench {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .msw-support-page .msw-session-panel {
+  background: #fafafa;
+}
+
+.app .main.main-merchant .msw-support-page .msw-chat-empty {
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+}
+
+.app .main.main-merchant .msw-support-page .msw-day-sep span {
+  box-shadow: none;
+}
+
+/* ---------- 通知 ---------- */
+.app .main.main-merchant .mn-page {
+  max-width: none;
+  margin: 0;
+  padding: 12px 16px 32px;
+}
+
+.app .main.main-merchant .mn-page .mn-search,
+.app .main.main-merchant .mn-page .mn-refresh {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.app .main.main-merchant .mn-page .mn-clear {
+  border-radius: 4px;
+}
+
+.app .main.main-merchant .mn-page .mn-state {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .mn-page .mn-toolbar {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .mn-page .mn-cats {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app .main.main-merchant .mn-page .mn-feed {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .mn-page .mn-card {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .mn-page .mn-card--unread {
+  background: #fafafa;
+  box-shadow: none;
+}
+
+/* ---------- 联系平台 ---------- */
+.app .main.main-merchant .mca-page {
+  max-width: none;
+  margin: 0;
+  padding: 12px 16px 36px;
+}
+
+.app .main.main-merchant .mca-page .mca-state {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .mca-page .mca-chat-shell {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .mca-page .mca-bubble {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.app .main.main-merchant .mca-page .mca-emergency {
+  border-radius: 0;
+  box-shadow: none;
+  border: 1px solid #374151;
+  background: #1a1d21;
+}
+
+.app .main.main-merchant .mca-page .mca-quick-card {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .mca-page .mca-quick-card:hover {
+  box-shadow: none;
+}
+
+/* ---------- 订单详情 ---------- */
+.app .main.main-merchant .merchant-order-detail {
+  background: #f0f2f5;
+}
+
+.app .main.main-merchant .merchant-order-detail .back-btn {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.app .main.main-merchant .merchant-order-detail .panel {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.app .main.main-merchant .merchant-order-detail .card {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}

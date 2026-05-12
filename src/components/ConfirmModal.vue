@@ -66,7 +66,7 @@ function onConfirm() {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(15, 25, 42, 0.45);
+  background: rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(2px);
 }
 
@@ -74,9 +74,9 @@ function onConfirm() {
   width: 100%;
   max-width: 420px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 20px 50px rgba(8, 20, 42, 0.18);
-  border: 1px solid #e2e8f0;
+  border-radius: 2px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.14);
+  border: 1px solid #e5e5e5;
   padding: 22px 22px 18px;
 }
 
@@ -84,14 +84,14 @@ function onConfirm() {
   margin: 0 0 14px;
   font-size: 17px;
   font-weight: 800;
-  color: #0f1f36;
-  letter-spacing: 0.02em;
+  color: #0a0a0a;
+  letter-spacing: -0.02em;
 }
 
 .confirm-modal-body {
   font-size: 14px;
   line-height: 1.65;
-  color: #3d4d63;
+  color: #525252;
   margin-bottom: 20px;
 }
 
@@ -110,14 +110,17 @@ function onConfirm() {
 }
 
 .confirm-modal-btn {
-  min-height: 38px;
+  min-height: 40px;
   padding: 0 18px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
+  border-radius: 2px;
+  font-size: 13px;
+  font-weight: 800;
   cursor: pointer;
-  border: none;
-  transition: opacity 0.15s, background 0.15s;
+  border: 1px solid transparent;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .confirm-modal-btn:disabled {
@@ -126,22 +129,25 @@ function onConfirm() {
 }
 
 .confirm-modal-btn--ghost {
-  background: #f1f4f8;
-  color: #3d4d63;
-  border: 1px solid #d5dde8;
+  background: #fff;
+  color: #0a0a0a;
+  border-color: #e5e5e5;
+  font-weight: 700;
 }
 
 .confirm-modal-btn--ghost:hover:not(:disabled) {
-  background: #e8edf4;
+  border-color: #0a0a0a;
 }
 
 .confirm-modal-btn--primary {
-  background: #0b1630;
-  color: #f4f6fb;
+  background: #0a0a0a;
+  color: #fff;
+  border-color: #0a0a0a;
 }
 
 .confirm-modal-btn--primary:hover:not(:disabled) {
-  background: #152a4d;
+  background: #262626;
+  border-color: #262626;
 }
 
 .confirm-modal-fade-enter-active,

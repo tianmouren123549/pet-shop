@@ -2,7 +2,9 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../utils/request'
+import { clearAuthLocalStorage, dispatchAuthUpdatedEvent } from '../utils/authStorage.js'
 import { showAppMessage } from '../utils/appMessage'
+import { isValidEmailFormat } from '../utils/emailFormat.js'
 
 const router = useRouter()
 const mode = ref('login') // login | register
@@ -32,6 +34,7 @@ function persistAccessToken(data) {
 
 async function handleLogin() {
   errorMsg.value = ''
+  clearAuthLocalStorage()
   const res = loginRole.value === 'merchant'
     ? await api.merchantLogin({ username: adminUsername.value, password: password.value })
     : await api.login({ email: userEmail.value, password: password.value })
@@ -42,6 +45,7 @@ async function handleLogin() {
       localStorage.setItem('adminId', String(res.data.adminId))
       localStorage.setItem('adminName', res.data.username || '')
       persistAccessToken(res.data)
+      dispatchAuthUpdatedEvent()
       showAppMessage('商家登录成功', '欢迎')
       router.push('/merchant')
       return
@@ -51,6 +55,7 @@ async function handleLogin() {
     localStorage.setItem('userId', String(res.data.userId))
     localStorage.setItem('nickname', res.data.nickname || '')
     persistAccessToken(res.data)
+    dispatchAuthUpdatedEvent()
     showAppMessage('登录成功', '欢迎')
     router.push('/')
   } else {
@@ -61,6 +66,11 @@ async function handleLogin() {
 async function handleRegister() {
   errorMsg.value = ''
   if (registerRole.value === 'merchant') {
+    const optEmail = String(email.value || '').trim()
+    if (optEmail && !isValidEmailFormat(optEmail)) {
+      errorMsg.value = '联系邮箱格式不正确'
+      return
+    }
     const res = await api.merchantRegister({
       username: adminUsername.value,
       password: password.value,
@@ -82,6 +92,15 @@ async function handleRegister() {
   }
   if (!nickname.value.trim()) {
     errorMsg.value = '请填写昵称'
+    return
+  }
+  const regEmail = String(userEmail.value || '').trim()
+  if (!regEmail) {
+    errorMsg.value = '请填写登录邮箱'
+    return
+  }
+  if (!isValidEmailFormat(regEmail)) {
+    errorMsg.value = '邮箱格式不正确'
     return
   }
   const res = await api.register({
@@ -242,69 +261,96 @@ function switchRegisterRole(next) {
 </template>
 
 <style scoped>
+/* 冷灰底 + 白卡片 + 深蓝主按钮（与用户参考稿一致） */
 .login-page {
+  --login-navy: #0a1128;
+  --login-navy-hover: #121c38;
+  --login-bg: #eef2f6;
+  --login-card: #ffffff;
+  --login-border: #e2e8f0;
+  --login-placeholder: #94a3b8;
+  --login-muted: #64748b;
+  --login-link: #1e4b7a;
+  --login-link-hover: #163454;
+  --login-radius: 10px;
+
   min-height: calc(100vh - 180px);
   display: grid;
   grid-template-columns: 1.15fr 0.95fr;
-  gap: 14px;
+  gap: 18px;
   align-items: stretch;
-  padding: 14px 0;
+  padding: 18px 0;
+  background: var(--login-bg);
+  font-family:
+    'Inter',
+    'Microsoft YaHei',
+    'PingFang SC',
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 .hero-panel {
-  border-radius: 4px;
+  border-radius: 16px;
   background: linear-gradient(120deg, rgba(5, 14, 30, 0.95), rgba(12, 36, 62, 0.78)),
     url('https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?auto=format&fit=crop&w=1400&q=80');
   background-size: cover;
   background-position: center;
   color: #e8eef8;
-  padding: 52px 40px;
+  padding: 60px 44px;
   border: 1px solid #0a1a32;
+  box-shadow: 0 16px 32px rgba(9, 21, 40, 0.22);
 }
 
 .hero-tag {
-  font-size: 10px;
-  letter-spacing: 1.4px;
-  color: #e2a457;
-  margin-bottom: 10px;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: #f0b85a;
+  margin-bottom: 12px;
+  font-weight: 700;
 }
 
 .hero-panel h2 {
-  font-size: 42px;
+  font-size: 48px;
   line-height: 1.08;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   color: #eef3fb;
 }
 
 .hero-desc {
-  color: #bcc9dc;
-  font-size: 14px;
-  line-height: 1.8;
-  max-width: 450px;
+  color: #d8e4f2;
+  font-size: 16px;
+  line-height: 1.75;
+  max-width: 480px;
+  font-weight: 500;
 }
 
 .login-container {
   width: 100%;
-  background: #f8fafe;
-  border-radius: 4px;
-  padding: 30px 28px;
-  border: 1px solid #d8e2ee;
+  background: var(--login-card);
+  border-radius: 12px;
+  padding: 32px 28px;
+  border: 1px solid var(--login-border);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .login-header {
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
 .login-header h3 {
-  font-size: 30px;
-  color: #0f1f36;
-  font-weight: 700;
-  margin-bottom: 6px;
+  font-size: 28px;
+  color: var(--login-navy);
+  font-weight: 800;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
 }
 
 .login-header p {
-  font-size: 12px;
-  color: #68798f;
+  font-size: 14px;
+  color: var(--login-muted);
+  line-height: 1.55;
+  font-weight: 500;
 }
 
 .login-form {
@@ -319,37 +365,37 @@ function switchRegisterRole(next) {
 }
 
 .segmented {
-  background: #eef3f9;
-  border: 1px solid #d4deea;
-  border-radius: 4px;
+  background: #f1f5f9;
+  border: 1px solid var(--login-border);
+  border-radius: var(--login-radius);
   padding: 4px;
   width: fit-content;
 }
 
 .tab-btn {
-  min-width: 110px;
-  height: 34px;
-  padding: 0 14px;
+  min-width: 128px;
+  height: 44px;
+  padding: 0 16px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 12px;
-  color: #566781;
+  font-size: 14px;
+  color: var(--login-muted);
   font-weight: 600;
-  transition: all 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease;
 }
 
 .tab-btn.active {
-  background: #0b1630;
-  border-color: #0b1630;
-  color: #f4f8ff;
-  box-shadow: 0 2px 8px rgba(11, 22, 48, 0.24);
+  background: var(--login-navy);
+  border-color: var(--login-navy);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(10, 17, 40, 0.2);
 }
 
 .tab-btn:not(.active):hover {
-  background: #e5edf8;
-  color: #30445f;
+  background: #e8eef4;
+  color: #475569;
 }
 
 .form-item {
@@ -359,92 +405,104 @@ function switchRegisterRole(next) {
 }
 
 .form-item label {
-  font-size: 12px;
-  color: #5d6e85;
+  font-size: 13px;
+  color: #475569;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.01em;
 }
 
 .form-item input {
-  height: 38px;
-  padding: 0 12px;
-  border: 1px solid #cdd8e7;
-  border-radius: 2px;
-  font-size: 13px;
-  transition: all 0.2s;
+  height: 50px;
+  padding: 0 16px;
+  border: 1px solid var(--login-border);
+  border-radius: var(--login-radius);
+  font-size: 15px;
+  transition: border-color 0.2s, box-shadow 0.2s;
   background: #fff;
-  color: #1a2940;
+  color: #0f172a;
 }
 
 .form-item input:focus {
   outline: none;
-  border-color: #173057;
-  box-shadow: 0 0 0 2px rgba(14, 35, 68, 0.08);
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25);
 }
 
 .form-item input::placeholder {
-  color: #bbb;
+  color: var(--login-placeholder);
+  font-size: 14px;
 }
 
 .error-msg {
-  padding: 8px 12px;
+  padding: 11px 13px;
   background: #fff1f1;
   border: 1px solid #f0c1c1;
-  border-radius: 2px;
+  border-radius: 10px;
   color: #a73636;
-  font-size: 12px;
+  font-size: 14px;
   text-align: center;
 }
 
 .login-btn {
-  height: 38px;
-  background: #0b1630;
-  color: #f2f7ff;
-  border: 1px solid #0b1630;
-  border-radius: 2px;
-  font-size: 13px;
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 20px;
+  background: var(--login-navy);
+  color: #fff;
+  border: 1px solid var(--login-navy);
+  border-radius: var(--login-radius);
+  font-size: 16px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s;
   font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .login-btn:hover {
-  background: #172d4f;
+  background: var(--login-navy-hover);
+  border-color: var(--login-navy-hover);
 }
 
 .switch-line {
-  margin-top: 4px;
+  margin-top: 6px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: #6b7b91;
-  font-size: 12px;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  color: var(--login-muted);
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .divider {
-  color: #a1afc2;
+  color: #cbd5e1;
+  font-weight: 300;
+  user-select: none;
 }
 
 .text-btn {
   border: none;
   background: transparent;
-  color: #16355f;
-  font-size: 12px;
+  color: var(--login-link);
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
   padding: 0;
 }
 
 .text-btn:hover {
-  color: #0b1630;
+  color: var(--login-link-hover);
 }
 
 @media (max-width: 980px) {
   .login-page {
     grid-template-columns: 1fr;
+    padding: 14px 12px;
   }
   .hero-panel {
     min-height: 240px;
+    padding: 34px 26px;
   }
 }
 

@@ -3,6 +3,14 @@
  */
 const MAIN_FOOD_ROOT_IDS = new Set([1, 2])
 
+function normalizeCategoryNameKey(name) {
+  return String(name || '')
+    .replace(/\u3000/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+}
+
 export function groupRootCategories(allCategories) {
   const roots = (Array.isArray(allCategories) ? allCategories : []).filter(
     (c) => Number(c.parentId) === 0
@@ -37,14 +45,55 @@ export function getSupplyLeafNavCategories(allCategories) {
  */
 export function getFlatCategoryNavCategories(allCategories) {
   const list = Array.isArray(allCategories) ? allCategories : []
-  const main = list
-    .filter(
-      (c) =>
-        Number(c.parentId) === 0 &&
-        MAIN_FOOD_ROOT_IDS.has(Number(c.categoryId))
-    )
-    .sort((a, b) => Number(a.categoryId) - Number(b.categoryId))
-  return [...main, ...getSupplyLeafNavCategories(list)]
+  const parentIds = new Set(
+    list
+      .map((c) => Number(c.parentId))
+      .filter((pid) => Number.isFinite(pid) && pid > 0)
+  )
+
+  const isDogFoodName = (name) => {
+    const s = normalizeCategoryNameKey(name)
+    return s.includes('狗粮') || s.includes('犬粮')
+  }
+  const isCatFoodName = (name) => {
+    const s = normalizeCategoryNameKey(name)
+    return s.includes('猫粮')
+  }
+
+  const dogRoot =
+    list.find((c) => Number(c.categoryId) === 1) ||
+    list.find((c) => Number(c.parentId) === 0 && isDogFoodName(c.name))
+  const catRoot =
+    list.find((c) => Number(c.categoryId) === 2) ||
+    list.find((c) => Number(c.parentId) === 0 && isCatFoodName(c.name))
+
+  // 末级分类里去掉猫粮/狗粮相关子类，只保留一个统一入口，避免“成犬粮/进口狗粮/... ”重复挤占导航。
+  const leaves = list.filter((c) => {
+    if (parentIds.has(Number(c.categoryId))) return false
+    if (isDogFoodName(c.name) || isCatFoodName(c.name)) return false
+    return true
+  })
+
+  // 按名称去重，防止导入脚本中同名分类重复出现影响导航可读性。
+  const dedupByName = new Map()
+  for (const item of leaves) {
+    const key = normalizeCategoryNameKey(item?.name)
+    if (!key) continue
+    const existed = dedupByName.get(key)
+    // 同名时优先保留排序更靠前（通常是更基础、较早建立）的类目，避免页面抖动。
+    if (!existed || Number(item.categoryId) < Number(existed.categoryId)) {
+      dedupByName.set(key, item)
+    }
+  }
+
+  const groupedFood = []
+  if (dogRoot) groupedFood.push(dogRoot)
+  if (catRoot) groupedFood.push(catRoot)
+
+  const normalizedFoodNames = new Set(groupedFood.map((x) => normalizeCategoryNameKey(x?.name)))
+  const others = [...dedupByName.values()].filter((x) => !normalizedFoodNames.has(normalizeCategoryNameKey(x?.name)))
+
+  return [...groupedFood, ...others].sort((a, b) => Number(a.categoryId) - Number(b.categoryId))
 }
 
 /**

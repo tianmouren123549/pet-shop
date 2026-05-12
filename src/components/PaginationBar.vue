@@ -7,6 +7,8 @@ const props = defineProps({
   total: { type: Number, required: true },
   pageSizeOptions: { type: Array, default: () => [] }, // number[]
   compact: { type: Boolean, default: false },
+  /** 是否展示左侧「显示 x–y / 共 z」摘要；其它页默认开启 */
+  showRangeMeta: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['update:page', 'update:pageSize'])
@@ -53,9 +55,16 @@ function onPageSizeChange(e) {
 </script>
 
 <template>
-  <div v-if="total > pageSize" class="pw-pagination" :class="{ 'pw-pagination--compact': compact }">
-    <div class="pw-pagination-left">
-      <span class="pw-pagination-meta">显示 {{ startIndex }}-{{ endIndex }} / {{ total }}</span>
+  <div
+    v-if="total > 0"
+    class="pw-pagination"
+    :class="{ 'pw-pagination--compact': compact, 'pw-pagination--no-meta': !showRangeMeta }"
+  >
+    <div v-if="showRangeMeta" class="pw-pagination-left">
+      <span class="pw-pagination-meta">
+        <template v-if="totalPages > 1">显示 {{ startIndex }}-{{ endIndex }} / {{ total }}</template>
+        <template v-else>共 {{ total }} 条</template>
+      </span>
     </div>
 
     <div class="pw-pagination-right">
@@ -68,22 +77,24 @@ function onPageSizeChange(e) {
         <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}/页</option>
       </select>
 
-      <button type="button" class="pw-page-btn" :disabled="safePage <= 1" @click="go(1)">首页</button>
-      <button type="button" class="pw-page-btn" :disabled="safePage <= 1" @click="go(safePage - 1)">上一页</button>
+      <template v-if="totalPages > 1">
+        <button type="button" class="pw-page-btn" :disabled="safePage <= 1" @click="go(1)">首页</button>
+        <button type="button" class="pw-page-btn" :disabled="safePage <= 1" @click="go(safePage - 1)">上一页</button>
 
-      <button
-        v-for="p in pagesToShow"
-        :key="p"
-        type="button"
-        class="pw-page-num"
-        :class="{ active: p === safePage }"
-        @click="go(p)"
-      >
-        {{ p }}
-      </button>
+        <button
+          v-for="p in pagesToShow"
+          :key="p"
+          type="button"
+          class="pw-page-num"
+          :class="{ active: p === safePage }"
+          @click="go(p)"
+        >
+          {{ p }}
+        </button>
 
-      <button type="button" class="pw-page-btn" :disabled="safePage >= totalPages" @click="go(safePage + 1)">下一页</button>
-      <button type="button" class="pw-page-btn" :disabled="safePage >= totalPages" @click="go(totalPages)">末页</button>
+        <button type="button" class="pw-page-btn" :disabled="safePage >= totalPages" @click="go(safePage + 1)">下一页</button>
+        <button type="button" class="pw-page-btn" :disabled="safePage >= totalPages" @click="go(totalPages)">末页</button>
+      </template>
     </div>
   </div>
 </template>

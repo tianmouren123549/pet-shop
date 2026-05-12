@@ -1,10 +1,20 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../../utils/request'
+import { formatYuan } from '../../utils/formatYuan.js'
 import { showAppMessage } from '../../utils/appMessage'
 import PaginationBar from '../../components/PaginationBar.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
+
+const PLACEHOLDER_IMG =
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">' +
+      '<rect fill="#e8ecf4" width="80" height="80"/>' +
+      '<text x="40" y="44" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="system-ui,sans-serif">IMG</text>' +
+      '</svg>',
+  )
 
 const products = ref([])
 const loading = ref(false)
@@ -12,37 +22,54 @@ const errorMsg = ref('')
 const sending = ref({})
 const bulkSending = ref(false)
 const restockConfirmOpen = ref(false)
-/** 待确认发送补货提醒的商品行 */
 const restockPending = ref(null)
 const bulkConfirmOpen = ref(false)
 
 const route = useRoute()
-/** 来自 URL ?shelf=online | offline，与商家筛选叠加 */
-const shelfFilter = ref('')
+const router = useRouter()
 
-function syncShelfFromQuery(query) {
-  const v = String(query?.shelf || '').toLowerCase()
-  shelfFilter.value = v === 'online' || v === 'offline' ? v : ''
+/** 列表标签：全部 | 上架 | 下架 | 库存预警 */
+const listTab = ref('all')
+const advancedOpen = ref(false)
+const selectedMerchantId = ref('ALL')
+const keyword = ref('')
+/** 高级筛选关键词：须 Enter 或点「搜索」才参与过滤 */
+const appliedKeyword = ref('')
+const page = ref(1)
+const pageSize = ref(6)
+/** 表格行多选 */
+const selectedIds = ref([])
+
+function syncTabFromRoute(query) {
+  if (String(query?.tab || '') === 'alert') {
+    listTab.value = 'alert'
+    return
+  }
+  const s = String(query?.shelf || '').toLowerCase()
+  if (s === 'online') listTab.value = 'online'
+  else if (s === 'offline') listTab.value = 'offline'
+  else listTab.value = 'all'
+}
+
+function setListTab(t) {
+  listTab.value = t
+  const q = {}
+  if (t === 'online') q.shelf = 'online'
+  else if (t === 'offline') q.shelf = 'offline'
+  else if (t === 'alert') q.tab = 'alert'
+  router.replace({ path: '/admin/products', query: q })
 }
 
 watch(
-  () => route.query.shelf,
-  () => {
-    syncShelfFromQuery(route.query)
+  () => route.query,
+  (q) => {
+    syncTabFromRoute(q || {})
     page.value = 1
   },
+  { deep: true },
 )
 
 const lowStockCount = computed(() => (products.value || []).filter((p) => Number(p.stock || 0) < 20).length)
-const selectedMerchantId = ref('ALL') // 'ALL' | number-string
-const keyword = ref('')
-const groupByMerchant = ref(true)
-const page = ref(1)
-const pageSize = ref(10)
-/** 按商家分组时，每个店铺表格内约可见行数（超出则在块内滚动） */
-const MERCHANT_GROUP_VISIBLE_ROWS = 5
-/** 按商家分组时，底部分页按「店铺」计数：每页展示的店铺数 */
-const SHOPS_PER_PAGE = 2
 
 const stats = computed(() => {
   const list = products.value || []
@@ -50,8 +77,19 @@ const stats = computed(() => {
   const off = list.length - online
   const lowStock = list.filter((p) => Number(p.stock) > 0 && Number(p.stock) < 20).length
   const soldOut = list.filter((p) => Number(p.stock) <= 0).length
-  return { total: list.length, online, off, lowStock, soldOut }
+  const alertCount = list.filter((p) => {
+    const st = Number(p.stock || 0)
+    return st <= 0 || (st > 0 && st < 20)
+  }).length
+  return { total: list.length, online, off, lowStock, soldOut, alertCount }
 })
+
+const tabCounts = computed(() => ({
+  all: stats.value.total,
+  online: stats.value.online,
+  offline: stats.value.off,
+  alert: stats.value.alertCount,
+}))
 
 const merchantOptions = computed(() => {
   const list = Array.isArray(products.value) ? products.value : []
@@ -73,49 +111,43 @@ function normalize(value) {
 
 const filteredProducts = computed(() => {
   const list = Array.isArray(products.value) ? products.value : []
-  const kw = normalize(keyword.value)
+  const kw = normalize(appliedKeyword.value)
   const midSel = selectedMerchantId.value === 'ALL' ? null : Number(selectedMerchantId.value || 0)
   return list.filter((p) => {
     if (midSel && Number(p?.merchantId || 0) !== midSel) return false
-    if (shelfFilter.value === 'online' && Number(p?.status) !== 1) return false
-    if (shelfFilter.value === 'offline' && Number(p?.status) !== 0) return false
+    if (listTab.value === 'online' && Number(p?.status) !== 1) return false
+    if (listTab.value === 'offline' && Number(p?.status) !== 0) return false
+    if (listTab.value === 'alert') {
+      const st = Number(p.stock || 0)
+      if (!(st <= 0 || (st > 0 && st < 20))) return false
+    }
     if (!kw) return true
     const title = normalize(p?.title)
     const pid = String(p?.productId ?? '')
     const shopName = normalize(p?.merchantShopName)
     const mId = String(p?.merchantId ?? '')
-    return title.includes(kw) || pid.includes(kw) || shopName.includes(kw) || mId.includes(kw)
+    const cat = normalize(p?.categoryName)
+    return (
+      title.includes(kw) ||
+      pid.includes(kw) ||
+      shopName.includes(kw) ||
+      mId.includes(kw) ||
+      cat.includes(kw)
+    )
   })
 })
 
-watch([selectedMerchantId, keyword, groupByMerchant], () => {
+function runProductKeywordSearch() {
+  appliedKeyword.value = keyword.value
+}
+
+watch([selectedMerchantId, appliedKeyword, listTab], () => {
   page.value = 1
-})
-
-const merchantGroupsAll = computed(() => {
-  const list = Array.isArray(filteredProducts.value) ? filteredProducts.value : []
-  const map = new Map()
-  for (const p of list) {
-    const mid = Number(p?.merchantId || 0) || 0
-    const key = mid || -1
-    if (!map.has(key)) map.set(key, [])
-    map.get(key).push(p)
-  }
-  const keys = Array.from(map.keys()).sort((a, b) => {
-    if (a === -1) return 1
-    if (b === -1) return -1
-    return a - b
-  })
-  return keys.map((k) => {
-    const items = map.get(k) || []
-    const sample = items[0] || {}
-    const merchantId = k === -1 ? 0 : Number(k)
-    const shopName = String(sample?.merchantShopName || '').trim() || (merchantId ? `商家${merchantId}` : '未绑定商家')
-    return { merchantId, shopName, items }
-  })
+  selectedIds.value = []
 })
 
 const total = computed(() => (Array.isArray(filteredProducts.value) ? filteredProducts.value.length : 0))
+
 const pagedFilteredProducts = computed(() => {
   const list = Array.isArray(filteredProducts.value) ? filteredProducts.value : []
   const p = Math.max(1, Number(page.value || 1))
@@ -124,50 +156,91 @@ const pagedFilteredProducts = computed(() => {
   return list.slice(start, start + ps)
 })
 
-/** 全部商家 + 分组：底部分页按「店铺」；其它情况按「商品」 */
-const useShopLevelPagination = computed(
-  () => groupByMerchant.value && selectedMerchantId.value === 'ALL',
-)
-
-watch([merchantGroupsAll, groupByMerchant, selectedMerchantId], () => {
-  if (!groupByMerchant.value || selectedMerchantId.value !== 'ALL') return
-  const totalShops = merchantGroupsAll.value.length
-  const tp = Math.max(1, Math.ceil(totalShops / SHOPS_PER_PAGE))
-  if (page.value > tp) page.value = tp
+const pageStart = computed(() => {
+  if (!total.value) return 0
+  return (Math.max(1, page.value) - 1) * Math.max(1, pageSize.value) + 1
 })
 
-watch([total, pageSize, groupByMerchant, selectedMerchantId], () => {
-  if (useShopLevelPagination.value) return
+const pageEnd = computed(() => {
+  if (!total.value) return 0
+  return Math.min(total.value, page.value * pageSize.value)
+})
+
+watch([total, pageSize], () => {
   const tp = Math.max(1, Math.ceil(Number(total.value || 0) / Math.max(1, Number(pageSize.value || 1))))
   if (page.value > tp) page.value = tp
 })
 
-function setPageSize(n) {
-  pageSize.value = Number(n || 10)
-  page.value = 1
+/** 后端常返回相对路径（如 /uploads/...），需拼接 VITE_API_BASE */
+function resolveMediaUrl(raw) {
+  const s = String(raw || '').trim()
+  if (!s) return ''
+  if (/^(https?:|data:|blob:)/i.test(s)) return s
+  const base = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '')
+  if (s.startsWith('/')) return base ? `${base}${s}` : s
+  return s
 }
 
-const groupedProducts = computed(() => {
-  if (!groupByMerchant.value) return []
-  const all = merchantGroupsAll.value
-  if (selectedMerchantId.value !== 'ALL') {
-    const g = all[0]
-    if (!g) return []
-    return [
-      {
-        merchantId: g.merchantId,
-        shopName: g.shopName,
-        items: pagedFilteredProducts.value,
-        itemTotal: g.items.length,
-      },
-    ]
-  }
-  const p = Math.max(1, Number(page.value || 1))
-  const start = (p - 1) * SHOPS_PER_PAGE
-  return all.slice(start, start + SHOPS_PER_PAGE).map((row) => ({ ...row, itemTotal: row.items.length }))
-})
+function productThumb(p) {
+  const raw = String(p?.imageUrl || p?.detail?.imageUrl || '').trim()
+  const resolved = resolveMediaUrl(raw)
+  return resolved || PLACEHOLDER_IMG
+}
 
-const groupPaginationTotal = computed(() => merchantGroupsAll.value.length)
+function skuText(p) {
+  return `SKU: PW-${String(p?.productId ?? '').padStart(5, '0')}`
+}
+
+function merchantInitials(item) {
+  const name = String(item?.merchantShopName || '').trim()
+  if (!name) return '商'
+  const ascii = /^[a-zA-Z]/.test(name)
+  if (ascii) {
+    const parts = name.split(/[\s_\-]+/).filter(Boolean)
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase().slice(0, 2)
+    return name.slice(0, 2).toUpperCase()
+  }
+  return name.slice(0, 2)
+}
+
+/** 合规/状态展示（中文） */
+function complianceRow(item) {
+  const st = Number(item.stock || 0)
+  const on = Number(item.status) === 1
+  if (!on) return { cls: 'flagged', dot: '#dc2626', text: '已下架' }
+  if (st <= 0) return { cls: 'flagged', dot: '#dc2626', text: '售罄' }
+  if (st < 20) return { cls: 'review', dot: '#ea580c', text: '在售 · 库存预警' }
+  return { cls: 'ok', dot: '#16a34a', text: '在售 · 正常' }
+}
+
+function categoryTag(item) {
+  const n = String(item?.categoryName || '').trim()
+  if (n) return n
+  const cid = Number(item?.categoryId || 0)
+  if (cid) return `类目 #${cid}`
+  return '未分类'
+}
+
+function toggleSelectAll(e) {
+  const checked = e.target.checked
+  if (!checked) {
+    selectedIds.value = []
+    return
+  }
+  selectedIds.value = pagedFilteredProducts.value.map((p) => p.productId)
+}
+
+function toggleRow(id, checked) {
+  const set = new Set(selectedIds.value)
+  if (checked) set.add(id)
+  else set.delete(id)
+  selectedIds.value = Array.from(set)
+}
+
+const allPageSelected = computed(() => {
+  const ids = pagedFilteredProducts.value.map((p) => p.productId)
+  return ids.length > 0 && ids.every((id) => selectedIds.value.includes(id))
+})
 
 async function loadProducts() {
   loading.value = true
@@ -204,9 +277,6 @@ function notifyRestock(item) {
   restockConfirmOpen.value = true
 }
 
-/**
- * 确认后向商家发送单条补货提醒。
- */
 async function confirmNotifyRestock() {
   const item = restockPending.value
   if (!item?.productId) {
@@ -238,9 +308,6 @@ function notifyLowStockBatch() {
   bulkConfirmOpen.value = true
 }
 
-/**
- * 确认后批量发送低库存补货提醒。
- */
 async function confirmBulkNotify() {
   if (bulkSending.value) return
   const targets = (products.value || []).filter((p) => Number(p.stock || 0) < 20)
@@ -265,206 +332,253 @@ async function confirmBulkNotify() {
   showAppMessage(`已发送 ${okCount}/${targets.length} 条补货提醒`, '批量提醒')
 }
 
+function onPlaceholderErr(e) {
+  const t = e.target
+  if (t && t.src !== PLACEHOLDER_IMG) t.src = PLACEHOLDER_IMG
+}
+
 onMounted(async () => {
-  syncShelfFromQuery(route.query)
+  syncTabFromRoute(route.query)
   await loadProducts()
 })
 </script>
 
 <template>
-  <div class="admin-page">
-    <h2>商品管理（平台监管）</h2>
-    <p class="desc">运营人员可浏览全站商品，必要时执行下架或恢复上架；商品标价与库存以各店铺维护为准。</p>
-    <p v-if="shelfFilter" class="shelf-banner">
-      当前仅显示<strong>{{ shelfFilter === 'online' ? '上架中' : '已下架' }}</strong>商品。
-      <RouterLink class="shelf-banner-link" to="/admin/products">查看全部商品</RouterLink>
-    </p>
-
-    <div class="stats">
-      <div class="stat"><span>商品总数</span><strong>{{ stats.total }}</strong></div>
-      <div class="stat"><span>上架中</span><strong>{{ stats.online }}</strong></div>
-      <div class="stat muted"><span>已下架</span><strong>{{ stats.off }}</strong></div>
-      <div class="stat warn"><span>库存紧张</span><strong>{{ stats.lowStock }}</strong></div>
-      <div class="stat muted"><span>售罄</span><strong>{{ stats.soldOut }}</strong></div>
-    </div>
-
-    <div class="toolbar">
-      <button class="tool-btn warn" :disabled="bulkSending" @click="notifyLowStockBatch">
-        {{ bulkSending ? '发送中...' : '一键提醒低库存' }}
-      </button>
-      <button class="tool-btn" @click="loadProducts">刷新</button>
-    </div>
-
-    <div class="filters">
-      <div class="filter-item">
-        <label>归属商家</label>
-        <select v-model="selectedMerchantId" class="filter-select">
-          <option value="ALL">全部商家</option>
-          <option v-for="m in merchantOptions" :key="m.merchantId" :value="String(m.merchantId)">
-            {{ m.shopName }}（ID: {{ m.merchantId }}）
-          </option>
-        </select>
+  <div class="admin-page prod-mod">
+    <div class="pm-head">
+      <div class="pm-head-text">
+        <h2>商品管理</h2>
       </div>
-      <div class="filter-item">
-        <label>关键词</label>
-        <input
-          v-model="keyword"
-          class="filter-input"
-          type="text"
-          placeholder="商品名 / 商品ID / 商家ID / 店铺名"
-        />
-      </div>
-      <label class="filter-check">
-        <input v-model="groupByMerchant" type="checkbox" />
-        按商家分组展示
-      </label>
-      <div class="filter-right">
-        <span class="filter-hint">
-          当前 {{ filteredProducts.length }} 件
-          <template v-if="groupByMerchant && selectedMerchantId === 'ALL'">
-            · 每页 {{ SHOPS_PER_PAGE }} 家店铺 · 各店铺表格内独立滚动（约 {{ MERCHANT_GROUP_VISIBLE_ROWS }} 行高）
-          </template>
-        </span>
+      <div class="pm-head-actions">
+        <button type="button" class="pm-btn-dark" @click="loadProducts">同步刷新</button>
       </div>
     </div>
 
-    <div v-if="loading">加载中...</div>
-    <div v-else-if="errorMsg">{{ errorMsg }}</div>
-    <div v-else-if="products.length === 0">暂无商品</div>
-    <template v-else>
-      <template v-if="groupByMerchant">
-        <div v-if="groupedProducts.length === 0" class="empty-panel">暂无匹配商品</div>
-        <div v-else class="groups">
-          <div v-for="g in groupedProducts" :key="g.merchantId || 'none'" class="group">
-            <div class="group-head">
-              <div class="group-title">
-                <strong class="group-name">{{ g.shopName }}</strong>
-                <span class="group-meta">（ID: {{ g.merchantId || '—' }}）</span>
-                <span class="group-count">{{ g.itemTotal ?? g.items.length }} 件</span>
-              </div>
-            </div>
-            <div
-              :class="selectedMerchantId === 'ALL' ? 'group-table-scroll' : 'group-table-wrap'"
-              :style="
-                selectedMerchantId === 'ALL'
-                  ? { '--merchant-visible-rows': MERCHANT_GROUP_VISIBLE_ROWS }
-                  : undefined
-              "
-            >
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>名称</th>
-                    <th>价格</th>
-                    <th>库存</th>
-                    <th>状态</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in g.items" :key="item.productId">
-                    <td>{{ item.productId }}</td>
-                    <td>{{ item.title }}</td>
-                    <td>¥{{ Number(item.price).toFixed(2) }}</td>
-                    <td>
-                      <div class="stock-cell">
-                        <span class="stock-num">{{ item.stock }}</span>
-                        <span v-if="Number(item.stock) <= 0" class="stock-tag soldout">售罄</span>
-                        <span v-else-if="Number(item.stock) < 20" class="stock-tag low">库存紧张</span>
-                      </div>
-                    </td>
-                    <td><span :class="['status', item.status === 1 ? 'ok' : 'off']">{{ item.status === 1 ? '上架中' : '已下架' }}</span></td>
-                    <td>
-                      <div class="btn-group">
-                        <button class="action-btn primary" @click="toggleStatus(item)">
-                          {{ item.status === 1 ? '下架' : '上架' }}
-                        </button>
-                        <button
-                          class="action-btn"
-                          :class="{ warn: Number(item.stock) < 20 }"
-                          :disabled="sending[item.productId]"
-                          @click="notifyRestock(item)"
-                        >
-                          {{ sending[item.productId] ? '发送中...' : '补货提醒' }}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+    <div class="pm-kpis">
+      <div class="pm-kpi">
+        <span class="pm-kpi-label">商品总数</span>
+        <div class="pm-kpi-row">
+          <strong class="pm-kpi-num">{{ stats.total }}</strong>
+          <span class="pm-kpi-badge pm-kpi-badge--muted">全平台</span>
+        </div>
+      </div>
+      <div class="pm-kpi">
+        <span class="pm-kpi-label">上架中</span>
+        <div class="pm-kpi-row">
+          <strong class="pm-kpi-num">{{ stats.online }}</strong>
+          <span class="pm-kpi-badge pm-kpi-badge--ok">在售</span>
+        </div>
+      </div>
+      <div class="pm-kpi">
+        <span class="pm-kpi-label">已下架</span>
+        <div class="pm-kpi-row">
+          <strong class="pm-kpi-num">{{ stats.off }}</strong>
+          <span class="pm-kpi-badge pm-kpi-badge--muted">监管</span>
+        </div>
+      </div>
+      <div class="pm-kpi">
+        <span class="pm-kpi-label">库存预警</span>
+        <div class="pm-kpi-row">
+          <strong class="pm-kpi-num">{{ stats.alertCount }}</strong>
+          <span class="pm-kpi-badge pm-kpi-badge--warn">待关注</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pm-panel">
+      <div class="pm-panel-head">
+        <div class="pm-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="listTab === 'all'"
+            :class="['pm-tab', { active: listTab === 'all' }]"
+            @click="setListTab('all')"
+          >
+            全部商品
+            <span class="pm-tab-count">{{ tabCounts.all }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="listTab === 'online'"
+            :class="['pm-tab', { active: listTab === 'online' }]"
+            @click="setListTab('online')"
+          >
+            上架中
+            <span class="pm-tab-count">{{ tabCounts.online }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="listTab === 'offline'"
+            :class="['pm-tab', { active: listTab === 'offline' }]"
+            @click="setListTab('offline')"
+          >
+            已下架
+            <span class="pm-tab-count">{{ tabCounts.offline }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="listTab === 'alert'"
+            :class="['pm-tab', { active: listTab === 'alert' }]"
+            @click="setListTab('alert')"
+          >
+            库存预警
+            <span class="pm-tab-count">{{ tabCounts.alert }}</span>
+          </button>
+        </div>
+        <div class="pm-panel-tools">
+          <button
+            type="button"
+            class="pm-panel-btn"
+            :class="{ 'pm-panel-btn--toggle-on': advancedOpen }"
+            @click="advancedOpen = !advancedOpen"
+          >
+            {{ advancedOpen ? '收起筛选' : '高级筛选' }}
+          </button>
+          <button type="button" class="pm-panel-btn pm-panel-btn--dark" :disabled="bulkSending" @click="notifyLowStockBatch">
+            {{ bulkSending ? '发送中…' : '批量补货提醒' }}
+          </button>
+        </div>
+      </div>
+
+      <div v-show="advancedOpen" class="pm-filters">
+        <div class="pm-filter-item">
+          <label>归属商家</label>
+          <select v-model="selectedMerchantId" class="pm-select">
+            <option value="ALL">全部商家</option>
+            <option v-for="m in merchantOptions" :key="m.merchantId" :value="String(m.merchantId)">
+              {{ m.shopName }}（ID: {{ m.merchantId }}）
+            </option>
+          </select>
+        </div>
+        <div class="pm-filter-item pm-filter-grow">
+          <label>关键词</label>
+          <div class="pm-keyword-row">
+            <input
+              v-model="keyword"
+              class="pm-input pm-input--grow"
+              type="text"
+              placeholder="商品名 / ID / 类目 / 店铺名 / 商家ID"
+              @keyup.enter="runProductKeywordSearch"
+            />
+            <button type="button" class="pm-search-btn" @click="runProductKeywordSearch">搜索</button>
           </div>
         </div>
+        <p class="pm-filter-meta">当前列表 {{ filteredProducts.length }} 件商品</p>
+      </div>
+
+      <div v-if="loading" class="pm-empty">加载中…</div>
+      <div v-else-if="errorMsg" class="pm-empty pm-empty--err">{{ errorMsg }}</div>
+      <div v-else-if="products.length === 0" class="pm-empty">暂无商品</div>
+      <div v-else-if="filteredProducts.length === 0" class="pm-empty">没有匹配的商品，请调整筛选条件</div>
+      <template v-else>
+        <div class="pm-table-wrap">
+          <table class="pm-table">
+            <thead>
+              <tr>
+                <th class="col-check">
+                  <input
+                    type="checkbox"
+                    :checked="allPageSelected"
+                    aria-label="全选本页"
+                    @change="toggleSelectAll"
+                  />
+                </th>
+                <th class="col-product">商品信息</th>
+                <th class="col-cat">类目</th>
+                <th class="col-merchant">商家</th>
+                <th class="col-price">价格（元）</th>
+                <th class="col-stock">库存</th>
+                <th class="col-status">状态</th>
+                <th class="col-actions">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in pagedFilteredProducts" :key="item.productId">
+                <td class="col-check">
+                  <input
+                    type="checkbox"
+                    :checked="selectedIds.includes(item.productId)"
+                    :aria-label="'选择 ' + item.title"
+                    @change="toggleRow(item.productId, $event.target.checked)"
+                  />
+                </td>
+                <td>
+                  <div class="pm-product">
+                    <img
+                      class="pm-product-img"
+                      :src="productThumb(item)"
+                      alt=""
+                      width="56"
+                      height="56"
+                      loading="lazy"
+                      @error="onPlaceholderErr"
+                    />
+                    <div class="pm-product-meta">
+                      <div class="pm-product-title">{{ item.title }}</div>
+                      <div class="pm-product-sku">{{ skuText(item) }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="pm-cat">{{ categoryTag(item) }}</span>
+                </td>
+                <td>
+                  <div class="pm-merchant">
+                    <span class="pm-merchant-av">{{ merchantInitials(item) }}</span>
+                    <span class="pm-merchant-name">{{ merchantText(item) }}</span>
+                  </div>
+                </td>
+                <td class="pm-price">¥{{ formatYuan(item.price) }}</td>
+                <td>
+                  <span class="pm-stock">{{ item.stock }}</span>
+                  <span v-if="Number(item.stock) <= 0" class="pm-stock-tag soldout">售罄</span>
+                  <span v-else-if="Number(item.stock) < 20" class="pm-stock-tag low">紧张</span>
+                </td>
+                <td>
+                  <span class="pm-comp" :class="complianceRow(item).cls">
+                    <i class="pm-comp-dot" :style="{ background: complianceRow(item).dot }" />
+                    {{ complianceRow(item).text }}
+                  </span>
+                </td>
+                <td class="col-actions">
+                  <div class="pm-actions">
+                    <button type="button" class="pm-act pm-act--primary" @click="toggleStatus(item)">
+                      {{ item.status === 1 ? '下架' : '上架' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="pm-act"
+                      :disabled="sending[item.productId]"
+                      @click="notifyRestock(item)"
+                    >
+                      {{ sending[item.productId] ? '发送中…' : '补货提醒' }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pm-pagination-row">
+          <p class="pm-range">
+            显示第 <strong>{{ pageStart }}</strong> – <strong>{{ pageEnd }}</strong> 条，共
+            <strong>{{ total }}</strong> 条
+            <template v-if="selectedIds.length"> · 已选 {{ selectedIds.length }} 条</template>
+          </p>
+          <PaginationBar
+            :page="page"
+            :page-size="pageSize"
+            :total="total"
+            @update:page="page = $event"
+          />
+        </div>
       </template>
-
-      <table v-else class="table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>名称</th>
-          <th>所属商家</th>
-          <th>价格</th>
-          <th>库存</th>
-          <th>状态</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="item in pagedFilteredProducts" :key="item.productId">
-          <td>{{ item.productId }}</td>
-          <td>{{ item.title }}</td>
-          <td class="muted">
-            <span class="merchant-name">{{ merchantText(item) }}</span>
-            <span class="merchant-id">（ID: {{ Number(item.merchantId || 0) || '—' }}）</span>
-          </td>
-          <td>¥{{ Number(item.price).toFixed(2) }}</td>
-          <td>
-            <div class="stock-cell">
-              <span class="stock-num">{{ item.stock }}</span>
-              <span v-if="Number(item.stock) <= 0" class="stock-tag soldout">售罄</span>
-              <span v-else-if="Number(item.stock) < 20" class="stock-tag low">库存紧张</span>
-            </div>
-          </td>
-          <td><span :class="['status', item.status === 1 ? 'ok' : 'off']">{{ item.status === 1 ? '上架中' : '已下架' }}</span></td>
-          <td>
-            <div class="btn-group">
-              <button class="action-btn primary" @click="toggleStatus(item)">
-                {{ item.status === 1 ? '下架' : '上架' }}
-              </button>
-              <button
-                class="action-btn"
-                :class="{ warn: Number(item.stock) < 20 }"
-                :disabled="sending[item.productId]"
-                @click="notifyRestock(item)"
-              >
-                {{ sending[item.productId] ? '发送中...' : '补货提醒' }}
-              </button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-      </table>
-
-      <PaginationBar
-        v-if="useShopLevelPagination"
-        :page="page"
-        :page-size="SHOPS_PER_PAGE"
-        :total="groupPaginationTotal"
-        :page-size-options="[]"
-        @update:page="page = $event"
-        @update:page-size="() => {}"
-      />
-      <PaginationBar
-        v-else
-        :page="page"
-        :page-size="pageSize"
-        :total="total"
-        :page-size-options="[8, 10, 20, 50]"
-        @update:page="page = $event"
-        @update:page-size="setPageSize"
-      />
-    </template>
+    </div>
 
     <ConfirmModal
       :open="restockConfirmOpen"
@@ -503,170 +617,607 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.admin-page { background: #f4f6f9; padding: 8px; }
-h2 { font-size: 34px; color: #1a2740; }
-.desc { color: #68788d; font-size: 13px; margin: 8px 0 14px; }
-
-.shelf-banner {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  border-radius: 4px;
-  border: 1px solid #c9d4e4;
-  background: #f0f4fa;
-  color: #304862;
-  font-size: 13px;
-  font-weight: 700;
-}
-.shelf-banner-link {
-  margin-left: 10px;
-  color: #0b1630;
-  font-weight: 900;
+.prod-mod {
+  min-width: 0;
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
-  margin: 10px 0 14px;
-}
-.stat {
-  padding: 14px;
-  border-radius: 4px;
-  background: #ffffff;
-  border: 1px solid #dde5ef;
-  min-height: 86px;
+.pm-head {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
   justify-content: space-between;
-}
-.stat span { color: #6d7d91; font-size: 11px; letter-spacing: 0.6px; font-weight: 800; }
-.stat strong { color: #0e1930; font-size: 34px; line-height: 1; }
-.stat.muted { background: #f7f9fc; }
-.stat.warn { background: #fff7e6; border-color: #ffd591; }
-
-.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
-.tool-btn { height: 32px; padding: 0 12px; border: 1px solid #c9d4e4; background: #fff; color: #23344f; border-radius: 2px; cursor: pointer; font-size: 12px; font-weight: 800; }
-.tool-btn.warn { border-color: #ffd591; background: #fff7e6; color: #ad6800; }
-.tool-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.filters {
-  display: grid;
-  grid-template-columns: 220px 1fr auto;
   gap: 12px;
-  align-items: end;
-  margin: 0 0 12px;
-  background: #f9fbfe;
-  border: 1px solid #dbe3ed;
-  border-radius: 4px;
-  padding: 12px;
-}
-.filter-item { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.filter-item label { font-size: 11px; font-weight: 800; color: #6d7d91; letter-spacing: 0.5px; }
-.filter-select, .filter-input {
-  height: 32px;
-  border: 1px solid #c9d4e4;
-  border-radius: 2px;
-  background: #fff;
-  color: #23344f;
-  font-size: 12px;
-  padding: 0 10px;
-  outline: none;
-}
-.filter-input { width: 100%; }
-.filter-select:focus, .filter-input:focus { border-color: #0b1630; }
-.filter-check { display: inline-flex; gap: 8px; align-items: center; font-size: 12px; color: #506078; font-weight: 700; user-select: none; }
-.filter-check input { width: 14px; height: 14px; accent-color: #0b1630; }
-.filter-right { display: flex; justify-content: flex-end; }
-.filter-hint { font-size: 12px; color: #6c7d93; font-weight: 700; }
-
-.groups { display: flex; flex-direction: column; gap: 12px; }
-.group { border: 1px solid #dbe3ed; border-radius: 4px; overflow: hidden; background: #fff; }
-.group-head {
-  padding: 12px 12px;
-  background: #f1f4f8;
-  border-bottom: 1px solid #ecf0f5;
-}
-.group-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.group-name { color: #0e1930; font-size: 13px; font-weight: 900; }
-.group-meta { color: #6c7d93; font-size: 12px; font-weight: 700; }
-.group-count {
-  margin-left: auto;
-  color: #23344f;
-  font-size: 12px;
-  font-weight: 900;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid #dbe3ee;
-  background: #fcfdff;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #eef2f7;
 }
 
-.group-table-scroll {
-  --merchant-row-h: 44px;
-  --merchant-thead-h: 40px;
-  max-height: calc(var(--merchant-thead-h) + var(--merchant-visible-rows, 5) * var(--merchant-row-h));
-  overflow-y: auto;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  border-top: 1px solid #ecf0f5;
-}
-.group-table-scroll .table { border-top: none; border-left: none; border-right: none; border-bottom: none; }
-.group-table-scroll .table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  box-shadow: 0 1px 0 #ecf0f5;
+.pm-head-text {
+  flex: 1;
+  min-width: 220px;
 }
 
-.group-table-wrap {
-  border-top: 1px solid #ecf0f5;
+h2 {
+  font-size: clamp(20px, 2vw, 26px);
+  color: #0a1220;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  margin: 0;
 }
-.group-table-wrap .table { border-top: none; border-left: none; border-right: none; border-bottom: none; }
 
-.table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #dbe3ed; }
-.table th, .table td { border-bottom: 1px solid #ecf0f5; padding: 12px 10px; font-size: 13px; color: #26354b; }
-.table th { background: #f1f4f8; text-align: left; font-size: 11px; color: #5f6d80; letter-spacing: 0.6px; }
-.status { display: inline-block; padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: 700; }
-.status.ok { background: #d9f4df; color: #166b2d; }
-.status.off { background: #ffe2e2; color: #8a1d1d; }
-.action-btn { height: 30px; padding: 0 10px; border: 1px solid #c9d4e4; background: #f8fbff; color: #23344f; border-radius: 2px; cursor: pointer; font-size: 12px; font-weight: 600; }
-.action-btn.primary { border-color: #0b1630; background: #0b1630; color: #f4f6fb; }
-.action-btn.warn { border-color: #ffd591; background: #fff7e6; color: #ad6800; }
-.action-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.pm-head-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
 
-.stock-cell { display: flex; align-items: center; gap: 8px; }
-.stock-num { font-weight: 800; color: #0e1930; }
-.muted { color: #6d7d91; }
-.merchant-name { font-size: 12px; color: #23344f; font-weight: 800; }
-.merchant-id { font-size: 12px; color: #7b8798; font-weight: 700; }
-.stock-tag {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 2px;
+.pm-btn-dark {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #0b1630;
+  background: #0b1630;
+  color: #f8fafc;
   font-size: 11px;
   font-weight: 800;
-  border: 1px solid #d9e1ec;
-  background: #f7f9fc;
-  color: #5e6e84;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
 }
-.stock-tag.low { border-color: #ffd591; background: #fff7e6; color: #ad6800; }
-.stock-tag.soldout { border-color: #c9d4e4; background: #eef2f7; color: #304862; }
 
-.empty-panel {
-  background: #f9fbfe;
-  border: 1px solid #dbe3ed;
-  border-radius: 4px;
-  padding: 50px 20px;
+.pm-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.pm-kpi {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+.pm-kpi-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 5px;
+}
+
+.pm-kpi-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pm-kpi-num {
+  font-size: clamp(22px, 2.4vw, 28px);
+  font-weight: 800;
+  color: #0a1220;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.pm-kpi-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+
+.pm-kpi-badge--ok {
+  background: #ecfdf3;
+  color: #15803d;
+}
+
+.pm-kpi-badge--warn {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.pm-kpi-badge--muted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.pm-panel {
+  border: 1px solid #e4e9f1;
+  border-radius: 16px;
+  background: #fafbfc;
+  overflow: hidden;
+}
+
+.pm-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background: #fff;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.pm-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pm-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.pm-tab-count {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.pm-tab.active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #0b1630;
+}
+
+.pm-tab.active .pm-tab-count {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.pm-panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pm-panel-btn {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #d0d9e6;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #334155;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.pm-panel-btn:hover:not(:disabled) {
+  border-color: #0b1630;
+  color: #0b1630;
+}
+
+.pm-panel-btn--toggle-on {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.pm-panel-btn--dark {
+  border-color: #0b1630;
+  background: #0b1630;
+  color: #f8fafc;
+}
+
+.pm-panel-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pm-filters {
+  display: grid;
+  grid-template-columns: 200px 1fr auto;
+  gap: 12px;
+  align-items: end;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.pm-filter-item label {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.pm-filter-grow {
+  min-width: 0;
+}
+
+.pm-keyword-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.pm-input--grow {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.pm-search-btn {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #0f172a;
+  background: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+}
+
+.pm-select,
+.pm-input {
+  width: 100%;
+  height: 36px;
+  border: 1px solid #d8e0ea;
+  border-radius: 10px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #1e293b;
+  background: #fff;
+}
+
+.pm-filter-meta {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 700;
+  padding-bottom: 8px;
+}
+
+.pm-empty {
+  padding: 40px 16px;
   text-align: center;
-  color: #6c7d93;
+  color: #64748b;
+  font-size: 12px;
   font-weight: 700;
 }
 
-@media (max-width: 980px) {
-  .stats { grid-template-columns: repeat(2, 1fr); }
-  .filters { grid-template-columns: 1fr; }
-  .filter-right { justify-content: flex-start; }
-  .group-count { margin-left: 0; }
+.pm-empty--err {
+  color: #b91c1c;
+}
+
+.pm-table-wrap {
+  overflow-x: auto;
+  background: #fff;
+}
+
+.pm-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.pm-table thead th {
+  text-align: left;
+  padding: 14px 16px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #e8ecf2;
+  white-space: nowrap;
+}
+
+.pm-table tbody td {
+  padding: 18px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  color: #334155;
+}
+
+.pm-table tbody tr:hover td {
+  background: #fafbff;
+}
+
+.col-check {
+  width: 48px;
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pm-table input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  vertical-align: middle;
+  accent-color: #0b1630;
+}
+
+.pm-table input[type='checkbox']:focus {
+  outline: none;
+}
+
+.pm-table input[type='checkbox']:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.col-product {
+  width: 36%;
+}
+
+.col-cat {
+  width: 11%;
+}
+
+.col-merchant {
+  width: 13%;
+}
+
+.col-price {
+  width: 92px;
+}
+
+.col-stock {
+  width: 86px;
+}
+
+.col-status {
+  width: 118px;
+}
+
+.col-actions {
+  width: 184px;
+}
+
+.pm-product {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pm-product-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid #e8ecf2;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+.pm-product-meta {
+  min-width: 0;
+}
+
+.pm-product-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.pm-product-sku {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.pm-cat {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.pm-merchant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pm-merchant-av {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #e8ecf4 0%, #dce3ee 100%);
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+}
+
+.pm-merchant-name {
+  font-weight: 700;
+  color: #1e293b;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-price {
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.pm-stock {
+  font-weight: 800;
+  margin-right: 6px;
+}
+
+.pm-stock-tag {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.pm-stock-tag.low {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.pm-stock-tag.soldout {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.pm-comp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.pm-comp-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pm-comp.ok {
+  color: #15803d;
+}
+
+.pm-comp.review {
+  color: #c2410c;
+}
+
+.pm-comp.flagged {
+  color: #b91c1c;
+}
+
+.pm-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.pm-act {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid #d8e0ea;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  color: #334155;
+  cursor: pointer;
+}
+
+.pm-act:hover:not(:disabled) {
+  border-color: #0b1630;
+  color: #0b1630;
+}
+
+.pm-act--primary {
+  border-color: #0b1630;
+  background: #0b1630;
+  color: #f8fafc;
+}
+
+.pm-act:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pm-pagination-row {
+  padding: 12px 14px;
+  background: #fff;
+  border-top: 1px solid #eef2f7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pm-range {
+  margin: 0;
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.pm-range strong {
+  color: #0f172a;
+}
+
+@media (max-width: 1100px) {
+  .pm-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .pm-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .pm-filter-meta {
+    grid-column: 1 / -1;
+  }
+
+  .pm-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }
 </style>
-

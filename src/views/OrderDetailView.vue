@@ -2,8 +2,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { api } from '../utils/request'
+import { formatYuan } from '../utils/formatYuan.js'
 import { showAppMessage } from '../utils/appMessage'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import AppImage from '../components/AppImage.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +16,16 @@ const order = ref(null)
 const payConfirmOpen = ref(false)
 const cancelConfirmOpen = ref(false)
 const receiveConfirmOpen = ref(false)
+
+function hasShippingSnapshot(o) {
+  if (!o) return false
+  return Boolean(
+    String(o.receiverName || '').trim() ||
+      String(o.receiverPhone || '').trim() ||
+      String(o.receiverRegion || '').trim() ||
+      String(o.receiverAddress || '').trim(),
+  )
+}
 
 function statusText(s) {
   return s === 'CREATED'
@@ -34,7 +46,6 @@ const canCancel = computed(() => ['CREATED', 'PAID'].includes(order.value?.statu
 const canConfirm = computed(() => order.value?.status === 'SHIPPED')
 const canReviewOrder = computed(() => order.value?.status === 'COMPLETED')
 
-/** 跳转商品详情并打开评价区（由详情页识别 query.review） */
 function goToProductReview(productId) {
   const id = Number(productId)
   if (!id) return
@@ -59,9 +70,6 @@ function pay() {
   payConfirmOpen.value = true
 }
 
-/**
- * 用户确认后执行站内「支付」状态变更。
- */
 async function submitPay() {
   if (!order.value) return
   const res = await api.userPayOrder(order.value.orderId, userId.value)
@@ -78,9 +86,6 @@ function cancel() {
   cancelConfirmOpen.value = true
 }
 
-/**
- * 用户确认后取消订单。
- */
 async function submitCancel() {
   if (!order.value) return
   const res = await api.userCancelOrder(order.value.orderId, userId.value)
@@ -97,9 +102,6 @@ function confirmReceive() {
   receiveConfirmOpen.value = true
 }
 
-/**
- * 用户确认已收货。
- */
 async function submitConfirmReceive() {
   if (!order.value) return
   const res = await api.userConfirmOrder(order.value.orderId, userId.value)
@@ -120,6 +122,10 @@ function contactMerchant() {
   router.push(`/support?merchantId=${merchantId}&orderId=${order.value.orderId}`)
 }
 
+const canContact = computed(
+  () => order.value && Array.isArray(order.value.items) && order.value.items.length > 0,
+)
+
 onMounted(async () => {
   if (!userId.value) {
     showAppMessage('请先登录', '提示')
@@ -131,106 +137,180 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="pw-page order-page">
-    <div class="pw-section order-breadcrumb">
-      <span class="order-breadcrumb-link" @click="$router.push('/orders')">我的订单</span>
-      <span class="order-breadcrumb-sep">/</span>
-      <span class="order-breadcrumb-current">订单详情</span>
-    </div>
-
-    <div v-if="loading" class="pw-state">订单加载中...</div>
-    <div v-else-if="errorMsg" class="pw-state pw-state--error">
-      <div class="order-err-title">{{ errorMsg }}</div>
-      <button type="button" class="pw-btn pw-btn-sm" @click="loadOrder">重试</button>
-    </div>
-
-    <template v-else-if="order">
-      <section class="pw-hero order-hero">
-        <div class="left">
-          <div class="no">订单号：{{ order.orderNo }}</div>
-          <div class="meta">
-            <span>下单时间：{{ new Date(order.createdAt).toLocaleString() }}</span>
-            <span>更新时间：{{ new Date(order.updatedAt).toLocaleString() }}</span>
-          </div>
+  <div class="pw-page order-page order-page--apex">
+    <section class="layout-shell">
+      <aside class="layout-sidebar">
+        <div class="sidebar-head">
+          <h2 class="sidebar-title">订单详情</h2>
+          <p class="sidebar-lead">查看物流、商品行与应付金额；需要售后请通过联系商家会话沟通。</p>
         </div>
-        <div class="right">
-          <div class="amount">¥{{ order.payAmount }}</div>
-          <span class="status" :class="order.status.toLowerCase()">{{ statusText(order.status) }}</span>
-        </div>
-      </section>
 
-      <section class="pw-section panel">
-        <div class="panel-title">商品清单</div>
-        <div class="items">
-          <div
-            v-for="(it, lineIdx) in order.items"
-            :key="`${it.productId}-${lineIdx}`"
-            class="item-wrap"
+        <div class="facet-block">
+          <div class="facet-title">快捷入口</div>
+          <button type="button" class="facet-chip" @click="router.push('/orders')">返回订单列表</button>
+          <button
+            type="button"
+            class="facet-chip"
+            :disabled="!canContact"
+            :class="{ 'facet-chip--disabled': !canContact }"
+            @click="contactMerchant"
           >
-            <div class="item" :class="{ 'item--reviewable': canReviewOrder }">
-              <RouterLink
-                v-if="Number(it.productId) > 0"
-                :to="`/product/${it.productId}`"
-                class="item-img-link"
-                :title="'查看商品：' + it.title"
-              >
-                <div class="img">
-                  <img v-if="it.imageUrl" :src="it.imageUrl" class="item-img" alt="商品图片" />
-                  <div v-else class="placeholder">暂无图片</div>
-                </div>
-              </RouterLink>
-              <div v-else class="img">
-                <img v-if="it.imageUrl" :src="it.imageUrl" class="item-img" alt="商品图片" />
-                <div v-else class="placeholder">暂无图片</div>
-              </div>
-              <div class="info">
-                <RouterLink
-                  v-if="Number(it.productId) > 0"
-                  :to="`/product/${it.productId}`"
-                  class="item-title-link"
-                >
-                  <div class="title">{{ it.title }}</div>
-                </RouterLink>
-                <div v-else class="title">{{ it.title }}</div>
-                <div class="sub">
-                  <span>单价：¥{{ Number(it.price).toFixed(2) }}</span>
-                  <span>数量：{{ it.quantity }}</span>
-                </div>
-              </div>
-              <div class="subtotal">¥{{ Number(it.subtotal).toFixed(2) }}</div>
-              <div v-if="canReviewOrder && Number(it.productId) > 0" class="item-review-actions">
-                <button
-                  type="button"
-                  class="pw-btn-ghost pw-btn-sm"
-                  @click="goToProductReview(it.productId)"
-                >
-                  去评价
-                </button>
-              </div>
-            </div>
-          </div>
+            联系商家
+          </button>
         </div>
-      </section>
 
-      <section class="pw-section panel actions">
-        <button type="button" class="pw-btn-ghost pw-btn-sm" @click="$router.push('/orders')">返回列表</button>
-        <button type="button" class="pw-btn-ghost pw-btn-sm" @click="contactMerchant">联系商家</button>
-        <div class="spacer"></div>
-        <button v-if="canCancel" type="button" class="order-danger" @click="cancel">取消订单</button>
-        <button v-if="canPay" type="button" class="pw-btn pw-btn-sm" @click="pay">立即支付</button>
-        <button v-if="canConfirm" type="button" class="pw-btn pw-btn-sm" @click="confirmReceive">确认收货</button>
-      </section>
+        <div v-if="order" class="side-summary">
+          <div class="facet-title">本单概览</div>
+          <dl class="side-summary-rows">
+            <div class="side-summary-row">
+              <dt>状态</dt>
+              <dd>
+                <span class="od-status-pill" :class="`od-status-pill--${order.status.toLowerCase()}`">{{
+                  statusText(order.status)
+                }}</span>
+              </dd>
+            </div>
+            <div class="side-summary-row">
+              <dt>应付</dt>
+              <dd class="side-summary-amount">¥{{ formatYuan(order.payAmount) }}</dd>
+            </div>
+            <div v-if="order.itemCount != null" class="side-summary-row">
+              <dt>件数</dt>
+              <dd>{{ order.itemCount }} 件</dd>
+            </div>
+          </dl>
+        </div>
 
-      <section class="pw-section tips">
-        <div class="tip-title">说明</div>
-        <ul>
-          <li>订单状态：待支付 → 已支付（待商家发货）→ 已发货 → 已完成。</li>
-          <li>待支付订单若下单后 <strong>1 小时</strong>内未完成支付，将自动取消，无需您手动操作。</li>
-          <li>发货与完成订单由商家在店铺后台处理，您可在此查看进度与物流信息。</li>
-          <li>订单为「已完成」后，可点击「去评价」进入对应商品详情页填写评价（与详情页「写评价」一致）。</li>
-        </ul>
-      </section>
-    </template>
+        <div class="sidebar-tip">
+          <p class="sidebar-tip-label">提示</p>
+          <p class="sidebar-tip-text">待支付订单请在约定时间内完成支付；发货与售后进度以商家处理为准。</p>
+        </div>
+      </aside>
+
+      <div class="layout-main">
+        <div class="od-breadcrumb">
+          <button type="button" class="od-breadcrumb-link" @click="router.push('/orders')">我的订单</button>
+          <span class="od-breadcrumb-sep">/</span>
+          <span class="od-breadcrumb-current">详情</span>
+        </div>
+
+        <div v-if="loading" class="od-state od-state--muted">订单加载中…</div>
+        <div v-else-if="errorMsg" class="od-state od-state--error">
+          <p class="od-err-title">{{ errorMsg }}</p>
+          <button type="button" class="od-btn-primary od-btn-primary--sm" @click="loadOrder">重试</button>
+        </div>
+
+        <template v-else-if="order">
+          <header class="od-toolbar">
+            <div class="od-toolbar__left">
+              <h1 class="od-toolbar-title">订单号 {{ order.orderNo }}</h1>
+              <p class="od-toolbar-meta">
+                <span>下单 {{ new Date(order.createdAt).toLocaleString() }}</span>
+                <span class="od-toolbar-dot">·</span>
+                <span>更新 {{ new Date(order.updatedAt).toLocaleString() }}</span>
+              </p>
+            </div>
+            <div class="od-toolbar__actions">
+              <button v-if="canCancel" type="button" class="od-btn-outline od-btn-outline--danger" @click="cancel">
+                取消订单
+              </button>
+              <button v-if="canPay" type="button" class="od-btn-primary" @click="pay">立即支付</button>
+              <button v-if="canConfirm" type="button" class="od-btn-primary" @click="confirmReceive">确认收货</button>
+            </div>
+          </header>
+
+          <div class="od-hero-card">
+            <div class="od-hero__label">应付金额</div>
+            <div class="od-hero__amount">¥{{ formatYuan(order.payAmount) }}</div>
+            <p class="od-hero__note">金额以支付完成时系统记录为准。</p>
+          </div>
+
+          <section v-if="hasShippingSnapshot(order)" class="od-panel">
+            <h2 class="od-panel-title">收货与配送</h2>
+            <dl class="od-dl">
+              <div class="od-dl-row">
+                <dt>收货人</dt>
+                <dd>{{ order.receiverName || '—' }}</dd>
+              </div>
+              <div class="od-dl-row">
+                <dt>联系电话</dt>
+                <dd>{{ order.receiverPhone || '—' }}</dd>
+              </div>
+              <div class="od-dl-row">
+                <dt>配送地区</dt>
+                <dd>{{ order.receiverRegion || '—' }}</dd>
+              </div>
+              <div class="od-dl-row">
+                <dt>详细地址</dt>
+                <dd>{{ order.receiverAddress || '—' }}</dd>
+              </div>
+              <div class="od-dl-row">
+                <dt>物流单号</dt>
+                <dd>{{ order.logisticsNo ? String(order.logisticsNo) : '暂无物流信息' }}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="od-panel">
+            <h2 class="od-panel-title">商品清单</h2>
+            <div class="od-items">
+              <article
+                v-for="(it, lineIdx) in order.items"
+                :key="`${it.productId}-${lineIdx}`"
+                class="od-line"
+                :class="{ 'od-line--review': canReviewOrder && Number(it.productId) > 0 }"
+              >
+                <div class="od-line__media">
+                  <RouterLink
+                    v-if="Number(it.productId) > 0"
+                    :to="`/product/${it.productId}`"
+                    class="od-line__img-link"
+                    :title="'查看商品：' + it.title"
+                  >
+                    <AppImage v-if="it.imageUrl" :src="it.imageUrl" class="od-line__img" alt="" loading="lazy" decoding="async" />
+                    <div v-else class="od-line__ph">暂无图</div>
+                  </RouterLink>
+                  <template v-else>
+                    <AppImage v-if="it.imageUrl" :src="it.imageUrl" class="od-line__img" alt="" loading="lazy" decoding="async" />
+                    <div v-else class="od-line__ph">暂无图</div>
+                  </template>
+                </div>
+                <div class="od-line__body">
+                  <RouterLink
+                    v-if="Number(it.productId) > 0"
+                    :to="`/product/${it.productId}`"
+                    class="od-line__title-link"
+                  >
+                    <h3 class="od-line__title">{{ it.title }}</h3>
+                  </RouterLink>
+                  <h3 v-else class="od-line__title">{{ it.title }}</h3>
+                  <div class="od-line__meta">
+                    <span>单价 ¥{{ formatYuan(it.price) }}</span>
+                    <span>数量 {{ it.quantity }}</span>
+                  </div>
+                </div>
+                <div class="od-line__price">¥{{ formatYuan(it.subtotal) }}</div>
+                <div v-if="canReviewOrder && Number(it.productId) > 0" class="od-line__cta">
+                  <button type="button" class="od-btn-outline od-btn-outline--sm" @click="goToProductReview(it.productId)">
+                    去评价
+                  </button>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="od-panel od-panel--tips">
+            <h2 class="od-panel-title">说明</h2>
+            <ul class="od-tips-list">
+              <li>订单状态：待支付 → 已支付（待商家发货）→ 已发货 → 已完成。</li>
+              <li>待支付订单若下单后 <strong>1 小时</strong>内未完成支付，将自动取消。</li>
+              <li>发货与完成由商家处理，您可在此查看进度与物流信息。</li>
+              <li>订单「已完成」后，可通过「去评价」进入商品详情页填写评价。</li>
+            </ul>
+          </section>
+        </template>
+      </div>
+    </section>
 
     <ConfirmModal
       :open="payConfirmOpen"
@@ -265,156 +345,615 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.order-page { width: 100%; margin: 0 auto; }
-.order-breadcrumb { margin-bottom: 12px; padding: 10px 12px; }
-.order-breadcrumb-link { cursor: pointer; font-weight: 700; color: #16355f; text-decoration: underline; text-underline-offset: 2px; }
-.order-breadcrumb-link:hover { color: #0b1630; }
-.order-breadcrumb-sep { margin: 0 8px; color: #b8c3d3; }
-.order-breadcrumb-current { color: #506078; font-weight: 700; }
-
-.order-hero { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-.no { font-weight: 900; margin-bottom: 8px; color: #131e30; }
-.meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #7b8798; }
-.right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.amount { font-size: 20px; font-weight: 900; color: #0b1630; }
-.status { padding: 2px 10px; border-radius: 2px; font-size: 11px; font-weight: 800; border: 1px solid #d9e1ec; background: #eef2f7; color: #304862; }
-.status.created { background: #faf5f5; border-color: #e8d4d4; color: #8a1d1d; }
-.status.paid { background: #e8ecf2; border-color: #c9d4e4; color: #23344f; }
-.status.shipped { background: #f1f3f6; border-color: #dbe3ee; color: #23344f; }
-.status.completed { background: #e8ecf2; border-color: #c9d4e4; color: #23344f; }
-.status.cancelled { background: #faf5f5; border-color: #e8d4d4; color: #8a1d1d; }
-
-.panel {
-  background: #f9fbfe;
-  border: 1px solid #d9e2ee;
-  border-radius: 2px;
-  padding: 16px;
-  margin-bottom: 16px;
-  color: #2a3b52;
+.order-page--apex {
+  --od-ink: #0a0a0a;
+  --od-muted: #737373;
+  --od-line: #e5e5e5;
+  --od-panel: #ffffff;
+  --od-soft: #fafafa;
+  --od-radius: 2px;
+  font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
 }
-.panel.error { color: #a73636; border-color: #f0c1c1; background: #fff1f1; }
-.order-err-title { font-weight: 800; margin-bottom: 10px; }
-.panel-title { font-weight: 900; color: #0e1d33; margin-bottom: 12px; }
 
-.items { display: flex; flex-direction: column; gap: 12px; }
-.item-wrap {
+.order-page--apex.pw-page {
+  padding-bottom: clamp(24px, 3vh, 36px);
+}
+
+.layout-shell {
+  display: grid;
+  grid-template-columns: minmax(200px, 248px) minmax(0, 1fr);
+  gap: clamp(16px, 2.5vw, 24px);
+  align-items: start;
+}
+
+.layout-sidebar {
+  position: sticky;
+  top: 72px;
+  background: var(--od-panel);
+  border: 1px solid var(--od-line);
+  border-radius: var(--od-radius);
+  padding: 16px 14px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.sidebar-head {
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--od-line);
+}
+
+.sidebar-title {
+  margin: 0 0 6px;
+  font-size: clamp(17px, 1.35vw, 20px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--od-ink);
+}
+
+.sidebar-lead {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--od-muted);
+}
+
+.facet-block {
   display: flex;
   flex-direction: column;
-}
-.item {
-  display: grid;
-  grid-template-columns: 82px 1fr 120px;
-  gap: 12px;
-  align-items: center;
-  padding: 12px;
-  border: 1px solid #e6edf6;
-  background: #f4f7fb;
-  border-radius: 2px;
-}
-.item.item--reviewable {
-  grid-template-columns: 82px 1fr minmax(100px, auto) 96px;
-}
-.item-review-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-.item-img-link {
-  text-decoration: none;
-  color: inherit;
-  align-self: center;
-  border-radius: 2px;
-  outline: none;
-}
-.item-img-link:focus-visible {
-  outline: 2px solid #16355f;
-  outline-offset: 2px;
-}
-.item-img-link:hover .img {
-  border-color: #a8bdd6;
-  box-shadow: 0 0 0 1px #dbe7f5;
-}
-.item-title-link {
-  text-decoration: none;
-  color: inherit;
-  display: block;
-}
-.item-title-link:hover .title {
-  color: #16355f;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.item-title-link:focus-visible {
-  outline: 2px solid #16355f;
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-.img {
-  width: 82px; height: 66px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; color: #b8c3d3;
-  border: 1px solid #dde6f2; background: #fff;
+  gap: 6px;
+  padding: 12px 0 10px;
+  border-top: 1px solid var(--od-line);
 }
 
-.item-img {
+.facet-block:first-of-type {
+  border-top: none;
+  padding-top: 4px;
+}
+
+.facet-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--od-muted);
+}
+
+.facet-chip {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--od-line);
+  border-radius: var(--od-radius);
+  background: var(--od-soft);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--od-ink);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.facet-chip:hover:not(:disabled) {
+  border-color: #bdbdbd;
+  background: #fff;
+}
+
+.facet-chip:disabled,
+.facet-chip--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.side-summary {
+  padding: 12px 0 10px;
+  border-top: 1px solid var(--od-line);
+}
+
+.side-summary-rows {
+  margin: 10px 0 0;
+}
+
+.side-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--od-line);
+  font-size: 13px;
+}
+
+.side-summary-row:last-child {
+  border-bottom: none;
+}
+
+.side-summary-row dt {
+  margin: 0;
+  font-weight: 600;
+  color: var(--od-muted);
+}
+
+.side-summary-row dd {
+  margin: 0;
+  font-weight: 700;
+  color: var(--od-ink);
+  text-align: right;
+}
+
+.side-summary-amount {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.od-status-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid var(--od-line);
+  border-radius: var(--od-radius);
+  background: var(--od-soft);
+  color: #404040;
+}
+
+.od-status-pill--created {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.od-status-pill--paid {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.od-status-pill--shipped {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.od-status-pill--completed {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+  color: #6b21a8;
+}
+
+.od-status-pill--cancelled {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.sidebar-tip {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--od-line);
+  border-radius: var(--od-radius);
+  background: var(--od-soft);
+}
+
+.sidebar-tip-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #a3a3a3;
+}
+
+.sidebar-tip-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--od-muted);
+}
+
+.layout-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.od-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.od-breadcrumb-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--od-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.od-breadcrumb-link:hover {
+  color: #525252;
+}
+
+.od-breadcrumb-sep {
+  color: #a3a3a3;
+}
+
+.od-breadcrumb-current {
+  color: var(--od-muted);
+  font-weight: 600;
+}
+
+.od-state {
+  padding: 28px 20px;
+  text-align: center;
+  border-radius: var(--od-radius);
+  border: 1px solid var(--od-line);
+  background: var(--od-panel);
+}
+
+.od-state--muted {
+  color: var(--od-muted);
+  font-weight: 600;
+}
+
+.od-state--error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.od-err-title {
+  margin: 0 0 14px;
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.od-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: clamp(18px, 2vw, 22px);
+  background: var(--od-panel);
+  border: 1px solid var(--od-line);
+  border-radius: var(--od-radius);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.od-toolbar-title {
+  margin: 0 0 6px;
+  font-size: clamp(17px, 1.45vw, 20px);
+  font-weight: 800;
+  color: var(--od-ink);
+  letter-spacing: -0.02em;
+}
+
+.od-toolbar-meta {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--od-muted);
+}
+
+.od-toolbar-dot {
+  margin: 0 6px;
+  color: var(--od-line);
+}
+
+.od-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.od-hero-card {
+  padding: clamp(20px, 2.5vw, 28px);
+  background: var(--od-panel);
+  border: 1px solid var(--od-line);
+  border-radius: var(--od-radius);
+}
+
+.od-hero__label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--od-muted);
+}
+
+.od-hero__amount {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--od-ink);
+  line-height: 1.1;
+}
+
+.od-hero__note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--od-muted);
+}
+
+.od-panel {
+  padding: clamp(18px, 2vw, 22px);
+  background: var(--od-panel);
+  border: 1px solid var(--od-line);
+  border-radius: var(--od-radius);
+}
+
+.od-panel-title {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a3a3a3;
+}
+
+.od-dl {
+  margin: 0;
+}
+
+.od-dl-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--od-line);
+  font-size: 14px;
+}
+
+.od-dl-row:last-child {
+  border-bottom: none;
+}
+
+.od-dl-row dt {
+  margin: 0;
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--od-muted);
+}
+
+.od-dl-row dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 700;
+  color: var(--od-ink);
+  word-break: break-word;
+}
+
+.od-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.od-line {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 14px 16px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--od-line);
+  border-radius: var(--od-radius);
+  background: var(--od-soft);
+}
+
+.od-line--review {
+  grid-template-columns: 72px 1fr auto 88px;
+}
+
+.od-line__media {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--od-radius);
+  overflow: hidden;
+  border: 1px solid var(--od-line);
+  background: var(--od-panel);
+}
+
+.od-line__img-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+}
+
+.od-line__img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.placeholder {
-  font-size: 12px;
-  color: #b8c3d3;
+.od-line__ph {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #a3a3a3;
 }
-.title { font-weight: 800; color: #0e1d33; line-height: 1.35; }
-.title {
+
+.od-line__body {
+  min-width: 0;
+}
+
+.od-line__title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.od-line__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--od-ink);
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  word-break: break-all;
 }
-.sub { margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #6c7d93; }
-.subtotal { text-align: right; font-weight: 900; color: #0b1730; }
 
-.actions { display: flex; gap: 10px; align-items: center; }
-.spacer { flex: 1; }
-.order-danger {
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 2px;
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 12px;
-  border: 1px solid #e8d4d4;
-  background: #faf5f5;
-  color: #8a1d1d;
+.od-line__title-link:hover .od-line__title {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.order-danger:hover {
-  border-color: #cfa9a9;
-}
-.ghost, .primary, .danger {
-  height: 34px;
-  padding: 0 14px;
-  border-radius: 2px;
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 12px;
-}
-.ghost { border: 1px solid #cdd8e7; background: #f4f8fd; color: #2b3d58; }
-.primary { border: 1px solid #0b1630; background: #0b1630; color: #f4f6fb; }
-.danger { border: 1px solid #ff4d4f; background: #fff1f1; color: #a73636; }
 
-.tips {
-  background: #f7f9fc;
-  border: 1px dashed #d9e1ec;
-  border-radius: 2px;
-  padding: 14px 16px;
-  color: #5e6e84;
+.od-line__meta {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--od-muted);
+}
+
+.od-line__price {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--od-ink);
+  text-align: right;
+}
+
+.od-line__cta {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.od-panel--tips {
+  background: var(--od-soft);
+}
+
+.od-tips-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #525252;
+}
+
+.od-btn-primary {
+  padding: 10px 20px;
+  border: 1px solid var(--od-ink);
+  border-radius: var(--od-radius);
+  background: var(--od-ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.od-btn-primary:hover {
+  background: #262626;
+  border-color: #262626;
+}
+
+.od-btn-primary--sm {
+  padding: 8px 16px;
   font-size: 12px;
 }
-.tip-title { font-weight: 900; margin-bottom: 8px; color: #0e1d33; }
-.tips ul { padding-left: 18px; line-height: 1.8; }
+
+.od-btn-outline {
+  padding: 10px 18px;
+  border: 1px solid var(--od-line);
+  border-radius: var(--od-radius);
+  background: var(--od-panel);
+  color: var(--od-ink);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.od-btn-outline:hover {
+  border-color: var(--od-ink);
+}
+
+.od-btn-outline--sm {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.od-btn-outline--danger {
+  border-color: #fecaca;
+  background: #fff;
+  color: #b91c1c;
+}
+
+.od-btn-outline--danger:hover {
+  border-color: #f87171;
+  background: #fef2f2;
+}
+
+@media (max-width: 980px) {
+  .layout-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .layout-sidebar {
+    position: static;
+    order: 2;
+  }
+
+  .layout-main {
+    order: 1;
+  }
+
+  .od-line {
+    grid-template-columns: 64px 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .od-line__media {
+    grid-row: span 2;
+    width: 64px;
+    height: 64px;
+  }
+
+  .od-line__price {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .od-line--review {
+    grid-template-columns: 64px 1fr;
+  }
+
+  .od-line__cta {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .od-line__cta .od-btn-outline {
+    width: 100%;
+  }
+
+  .od-toolbar__actions {
+    width: 100%;
+  }
+
+  .od-toolbar__actions .od-btn-primary,
+  .od-toolbar__actions .od-btn-outline {
+    flex: 1;
+    min-width: 0;
+  }
+}
 </style>
-

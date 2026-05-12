@@ -192,16 +192,14 @@ onMounted(load)
 <template>
   <div class="page">
     <div class="header">
-      <h2>商品内容编辑</h2>
-      <p class="desc">
-        正在编辑：{{ productTitle || `商品ID ${productId}` }}；可编辑描述、规格参数，并上传主图（保存后由服务端存储并返回访问路径）。
-      </p>
-      <div v-if="productTitle" class="chips">
+      <div class="chips">
         <span class="chip">ID {{ productId }}</span>
-        <span class="chip" :class="status === 1 ? 'ok' : 'off'">{{ status === 1 ? '上架中' : '已下架' }}</span>
-        <span class="chip" :class="Number(stock) < 20 ? 'warn' : 'muted'">
-          库存 {{ stock }}
-        </span>
+        <template v-if="productTitle">
+          <span class="chip" :class="status === 1 ? 'ok' : 'off'">{{ status === 1 ? '上架中' : '已下架' }}</span>
+          <span class="chip" :class="Number(stock) < 20 ? 'warn' : 'muted'">
+            库存 {{ stock }}
+          </span>
+        </template>
       </div>
     </div>
 
@@ -292,7 +290,7 @@ onMounted(load)
           <div class="preview-card">
             <div class="preview-title">图片预览</div>
             <div class="preview">
-              <img v-if="imageUrlPreview" :src="imageUrlPreview" class="preview-img" />
+              <img v-if="imageUrlPreview" :src="imageUrlPreview" class="preview-img" loading="lazy" decoding="async" />
               <div v-else class="placeholder">暂无图片</div>
             </div>
 
@@ -310,9 +308,7 @@ onMounted(load)
 <style scoped>
 .page { width: 100%; }
 .header { background: #08142a; padding: 24px; border-radius: 2px; margin-bottom: 16px; border: 1px solid #08142a; }
-.header h2 { font-size: 34px; color: #e7eef9; margin-bottom: 8px; font-weight: 800; }
-.desc { color: #b8c7dc; font-size: 13px; line-height: 1.8; }
-.chips { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   display: inline-block;
   padding: 2px 10px;

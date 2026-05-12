@@ -1,5 +1,8 @@
 import { mockProducts, mockReviews, mockCategories, mockCart } from '../mock/data.js'
 import { NETWORK_ERROR, toFriendlyApiMessage } from './apiFriendlyMessage.js'
+import { formatYuan } from './formatYuan.js'
+import { clearAuthLocalStorage, dispatchAuthClearedEvent } from './authStorage.js'
+import { isValidEmailFormat } from './emailFormat.js'
 
 /**
  * 是否走内置离线数据（USE_MOCK=true）。联调后端请保持 false；BASE_URL 为空时 Vite 将 `/api`、`/uploads` 代理到 8080。
@@ -11,6 +14,17 @@ const BASE_URL = import.meta.env.VITE_API_BASE ?? ''
 
 /** JWT：登录成功后由后端写入 {@code localStorage.accessToken} */
 const ACCESS_TOKEN_KEY = 'accessToken'
+/**
+ * 商品列表短时缓存：减少首页/商品列表切换时重复全量拉取。
+ * 仅缓存成功响应，TTL 取较短值以兼顾新鲜度。
+ */
+const PRODUCTS_CACHE_TTL_MS = 8000
+let productsCache = {
+  expireAt: 0,
+  data: null,
+}
+/** 避免短时间内并发触发多次相同商品请求 */
+let productsInFlight = null
 
 /**
  * 构建带 Bearer 的请求头（联调后端 JWT 时使用）。
@@ -105,6 +119,7 @@ const state = {
       password: '123456',
       email: 'test@example.com',
       avatarUrl: '',
+      petPreference: 'both',
       status: 1,
     },
   ],
@@ -196,6 +211,29 @@ const state = {
       createdAt: new Date(Date.now() - 1000 * 60 * 11).toISOString(),
     },
   ],
+  /** mock：用户收货地址（多地址），key 为 userId 字符串 */
+  userAddresses: {
+    1: [
+      {
+        addressId: 101,
+        label: '家',
+        receiverName: '测试用户',
+        receiverPhone: '13800138000',
+        receiverRegion: '贵州省 贵阳市 云岩区',
+        receiverDetail: '某某路 88 号 101 室',
+        isDefault: 1,
+      },
+      {
+        addressId: 102,
+        label: '公司',
+        receiverName: '测试用户',
+        receiverPhone: '13900139000',
+        receiverRegion: '北京市 朝阳区',
+        receiverDetail: '望京 SOHO T1 座',
+        isDefault: 0,
+      },
+    ],
+  },
 }
 
 for (const p of state.products) {
@@ -211,6 +249,47 @@ for (const o of state.orders) {
     const p2 = state.products.find((sp) => Number(sp.productId) === Number(it.productId))
     if (!it.imageUrl) it.imageUrl = String(p2?.detail?.imageUrl || '')
   }
+}
+
+function mockAddressListForUser(userId) {
+  const uid = Number(userId)
+  const key = String(uid)
+  if (!state.userAddresses) state.userAddresses = {}
+  if (!Array.isArray(state.userAddresses[key])) state.userAddresses[key] = []
+  return state.userAddresses[key]
+}
+
+function nextMockAddressId() {
+  const all = []
+  const map = state.userAddresses || {}
+  for (const k of Object.keys(map)) {
+    all.push(...(map[k] || []))
+  }
+  return nextId(all, 'addressId')
+}
+
+/**
+ * @returns {{ receiverName: string, receiverPhone: string, receiverRegion: string, receiverAddress: string } | null}
+ */
+function resolveMockReceiverFromOrderPayload(userId, data) {
+  const uid = Number(userId)
+  const aid = Number(data?.addressId || 0)
+  const u = (state.users || []).find((x) => Number(x.userId) === uid)
+  let receiverName = String(data?.receiverName ?? '').trim()
+  let receiverPhone = String(data?.receiverPhone ?? '').trim()
+  let receiverRegion = String(data?.receiverRegion ?? '').trim()
+  let receiverAddress = String(data?.receiverAddress ?? '').trim()
+  if (aid > 0) {
+    const row = mockAddressListForUser(uid).find((a) => Number(a.addressId) === aid)
+    if (!row) return null
+    receiverName = String(row.receiverName || '').trim()
+    receiverPhone = String(row.receiverPhone || '').trim()
+    receiverRegion = String(row.receiverRegion || '').trim()
+    receiverAddress = String(row.receiverDetail || '').trim()
+  }
+  if (!receiverName && u?.nickname) receiverName = String(u.nickname).trim()
+  if (!receiverPhone && u?.phone) receiverPhone = String(u.phone || '').trim()
+  return { receiverName, receiverPhone, receiverRegion, receiverAddress }
 }
 
 function pad2(n) {
@@ -343,6 +422,14 @@ function seedOrdersForPagination() {
       items: [item1, item2],
       createdAt,
       updatedAt,
+      receiverName: '张晓明',
+      receiverPhone: '13800135678',
+      receiverRegion: '广东省 深圳市 南山区',
+      receiverAddress: '科技园科苑路15号 502室',
+      logisticsNo: idx % 5 === 0 ? `SF${String(oid).padStart(10, '0')}` : '',
+      paidAt: ['PAID', 'SHIPPED', 'COMPLETED'].includes(statusCycle[idx % statusCycle.length])
+        ? new Date(Date.now() - daysAgo * 1000 * 60 * 60 * 10).toISOString()
+        : null,
     })
     idx += 1
   }
@@ -454,12 +541,11 @@ async function parseApiResponse(res) {
       data = null
     }
   }
-  if (data?.code === 401) {
-    try {
-      localStorage.removeItem(ACCESS_TOKEN_KEY)
-    } catch {
-      /* ignore */
-    }
+  const unauthorized =
+    res.status === 401 || (data != null && typeof data.code === 'number' && data.code === 401)
+  if (unauthorized) {
+    clearAuthLocalStorage()
+    dispatchAuthClearedEvent()
   }
   if (typeof data?.code === 'number') {
     if (data.code !== 200) {
@@ -599,6 +685,38 @@ function pushNotice(data) {
   return id
 }
 
+/** Mock：用户下单待支付 → 消息中心（与后端 NotificationService 语义一致） */
+function mockNotifyOrderPendingPay(order) {
+  const uid = Number(order?.userId || 0)
+  if (!uid) return
+  const no = String(order.orderNo || '').trim() || `订单号 ${order.orderId}`
+  const payNum = Number(order.payAmount)
+  const payStr = Number.isFinite(payNum) ? payNum.toFixed(2) : String(order.payAmount ?? '0.00')
+  pushNotice({
+    receiverType: 'USER',
+    receiverId: uid,
+    title: '待支付订单',
+    content: `订单「${no}」已创建，应付 ¥${payStr}。请尽快前往「我的订单」完成支付；超时未支付将自动取消。`,
+    reason: 'ORDER_PENDING_PAY',
+  })
+}
+
+/** Mock：订单已发货 → 消息中心 */
+function mockNotifyOrderShipped(order) {
+  const uid = Number(order?.userId || 0)
+  if (!uid) return
+  const no = String(order.orderNo || '').trim() || `订单号 ${order.orderId}`
+  const logNo = order.logisticsNo != null && String(order.logisticsNo).trim()
+  const logHint = logNo ? `物流单号：${String(order.logisticsNo).trim()}。` : '请在订单详情查看物流信息。'
+  pushNotice({
+    receiverType: 'USER',
+    receiverId: uid,
+    title: '订单已发货',
+    content: `订单「${no}」已发货。${logHint}收到货后请及时确认收货。`,
+    reason: 'ORDER_SHIPPED',
+  })
+}
+
 function toCartViewItem(item) {
   const product = state.products.find((p) => p.productId === item.productId)
   if (!product) return null
@@ -612,9 +730,9 @@ function toCartViewItem(item) {
     productId: item.productId,
     title: product.title,
     imageUrl: String(product.detail?.imageUrl || ''),
-    price: price.toFixed(2),
+    price: formatYuan(price),
     quantity: item.quantity,
-    subtotal: (price * item.quantity).toFixed(2),
+    subtotal: formatYuan(price * item.quantity),
     merchantId: mid || null,
     merchantShopName,
   }
@@ -629,7 +747,7 @@ function toOrderSummary(o) {
     orderNo: o.orderNo,
     userId: o.userId,
     userNickname: nick,
-    payAmount: Number(o.payAmount).toFixed(2),
+    payAmount: formatYuan(o.payAmount),
     status: o.status,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
@@ -735,6 +853,24 @@ function nextReviewId() {
 }
 
 const mockApi = {
+  postUserEvent: async () => ok(true),
+  getUserRecommendations: async (userId, topN = 10) => {
+    const uid = Number(userId || 0)
+    if (!uid) return fail('请先登录')
+    const n = Math.max(1, Math.min(Number(topN || 10), 50))
+    const data = (state.products || [])
+      .filter((p) => Number(p.status) === 1)
+      .sort((a, b) => Number(b.stock || 0) - Number(a.stock || 0))
+      .slice(0, n)
+      .map((p, idx) => ({
+        productId: Number(p.productId),
+        score: Number((0.95 - idx * 0.01).toFixed(4)),
+        rankNo: idx + 1,
+        modelVersion: 'mock-xgb-v1',
+        product: p,
+      }))
+    return ok(data)
+  },
   getProducts: async () => ok(state.products.filter((p) => Number(p.status) === 1)),
   getProduct: async (id) => {
     const p = state.products.find((x) => x.productId === Number(id))
@@ -833,6 +969,7 @@ const mockApi = {
     const email = String(data?.email || '').trim().toLowerCase()
     const phone = String(data?.phone || '').trim()
     if (!email) return fail('邮箱不能为空')
+    if (!isValidEmailFormat(email)) return fail('邮箱格式不正确')
     if (password.length < 6) return fail('密码至少 6 位')
     if (state.users.some((u) => String(u.email || '').trim().toLowerCase() === email)) return fail('该邮箱已被注册')
     const user = {
@@ -842,9 +979,12 @@ const mockApi = {
       password,
       email,
       avatarUrl: '',
+      petPreference: 'both',
       status: 1,
     }
     state.users.push(user)
+    if (!state.userAddresses) state.userAddresses = {}
+    state.userAddresses[String(user.userId)] = []
     return ok(
       { userId: user.userId, nickname: user.nickname, token: `mock-jwt-USER-${user.userId}` },
       '注册成功',
@@ -889,6 +1029,7 @@ const mockApi = {
     if (!shopName) return fail('店铺名称不能为空')
     if (!contactName) return fail('联系人不能为空')
     if (!phone) return fail('联系电话不能为空')
+    if (email && !isValidEmailFormat(email)) return fail('联系邮箱格式不正确')
     if (state.merchants.some((m) => m.username === username)) return fail('该商家账号已被注册')
     const merchant = {
       merchantId: nextId(state.merchants, 'merchantId'),
@@ -917,7 +1058,16 @@ const mockApi = {
   adminGetProducts: async () => {
     const data = (state.products || []).map((p) => {
       const m = merchantBaseInfo(p.merchantId)
-      return { ...p, merchantId: m.merchantId, merchantShopName: m.shopName, merchantContactName: m.contactName }
+      const imageUrl = String(p?.detail?.imageUrl ?? p?.imageUrl ?? '').trim()
+      const categoryName = String(p?.categoryName ?? '').trim()
+      return {
+        ...p,
+        merchantId: m.merchantId,
+        merchantShopName: m.shopName,
+        merchantContactName: m.contactName,
+        imageUrl,
+        categoryName,
+      }
     })
     return ok(data)
   },
@@ -939,6 +1089,7 @@ const mockApi = {
       if (price === null) return fail('价格必须为非负数')
       product.price = price
     }
+    product.updatedAt = new Date().toISOString()
     return ok(true, '更新成功')
   },
   adminNotifyRestock: async (productId, data) => {
@@ -1085,6 +1236,9 @@ const mockApi = {
       }
     }
     if (typeof data?.imageUrl !== 'undefined') product.detail.imageUrl = String(data.imageUrl ?? '')
+    if (data?.imageFile && typeof data.imageFile === 'object' && data.imageFile.name) {
+      product.detail.imageUrl = `/mock-upload/${String(data.imageFile.name).replace(/[^\w.-]+/g, '_')}`
+    }
     return ok(true, '内容更新成功')
   },
 
@@ -1132,7 +1286,7 @@ const mockApi = {
       userNickname: u?.nickname?.trim() ? u.nickname : order.userId != null ? `用户${order.userId}` : '—',
       userEmail: u?.email || '',
       userPhone: u?.phone || '',
-      payAmount: Number(order.payAmount).toFixed(2),
+      payAmount: formatYuan(order.payAmount),
       status: order.status,
       statusReason: order.statusReason || '',
       createdAt: order.createdAt,
@@ -1166,6 +1320,20 @@ const mockApi = {
     if (pwd.length < 6) return fail('新密码至少 6 位')
     u.password = pwd
     return ok(true)
+  },
+  adminResetUserPetPreference: async (userId) => {
+    const u = state.users.find((x) => x.userId === Number(userId))
+    if (!u) return fail('用户不存在', 404)
+    u.petPreference = null
+    return ok(true)
+  },
+  adminResetAllUserPetPreference: async () => {
+    let affected = 0
+    for (const u of state.users || []) {
+      u.petPreference = null
+      affected += 1
+    }
+    return ok({ affectedRows: affected })
   },
   adminListMerchants: async () => {
     const list = (state.merchants || []).map((m) => ({
@@ -1228,6 +1396,7 @@ const mockApi = {
       order.status = 'SHIPPED'
       order.stockDeducted = true
       order.updatedAt = new Date().toISOString()
+      mockNotifyOrderShipped(order)
       return ok(true, '状态更新成功')
     }
     if (next === 'COMPLETED') {
@@ -1242,13 +1411,87 @@ const mockApi = {
     return ok(true, '状态更新成功')
   },
 
+  adminUrgeOrderShipment: async (orderId) => {
+    const order = state.orders.find((o) => o.orderId === Number(orderId))
+    if (!order) return fail('订单不存在', 404)
+    if (order.status !== 'PAID') return fail('仅待发货（已支付）订单可催发货')
+    const mids = [
+      ...new Set((order.items || []).map((it) => Number(it.merchantId || 0)).filter((x) => x > 0)),
+    ]
+    if (!mids.length) return fail('订单无商家明细，无法通知')
+    const no = String(order.orderNo || '').trim() || `#${order.orderId}`
+    const content = `订单「${no}」已支付，客户等待发货。请及时在商家后台处理发货。`
+    for (const mid of mids) {
+      pushNotice({
+        receiverType: 'MERCHANT',
+        receiverId: mid,
+        title: '平台催发货',
+        content,
+        reason: 'ADMIN_URGE_SHIP',
+      })
+    }
+    return ok(true, '已通知商家尽快发货')
+  },
+
   merchantGetOrders: async (merchantId, status = '') => {
     const mid = Number(merchantId || 0)
     if (!mid) return fail('商家ID无效', 400)
     const data = (status ? state.orders.filter((o) => o.status === status) : state.orders)
       .filter((o) => Array.isArray(o.items) && o.items.some((it) => Number(it.merchantId || 0) === mid))
-      .map(toOrderSummary)
+      .map((o) => {
+        const s = toOrderSummary(o)
+        return {
+          ...s,
+          buyerNickname: s.userNickname,
+          logisticsNo: o.logisticsNo != null ? String(o.logisticsNo) : '',
+        }
+      })
     return ok(data)
+  },
+  merchantGetOrderDetail: async (merchantId, orderId) => {
+    const mid = Number(merchantId || 0)
+    const oid = Number(orderId)
+    if (!mid || !oid) return fail('参数无效', 400)
+    const order = state.orders.find((o) => o.orderId === oid)
+    if (!order) return fail('订单不存在', 404)
+    const lines = (order.items || []).filter((it) => Number(it.merchantId) === mid)
+    if (!lines.length) return fail('订单不存在或无权查看', 404)
+    const payNum = Number(order.payAmount)
+    const payStr = Number.isFinite(payNum) ? payNum.toFixed(2) : String(order.payAmount ?? '0.00')
+    const u = (state.users || []).find((x) => Number(x.userId) === Number(order.userId))
+    const buyerNickname =
+      u?.nickname && String(u.nickname).trim() ? String(u.nickname).trim() : `用户 #${order.userId ?? '—'}`
+    return ok({
+      orderId: order.orderId,
+      orderNo: order.orderNo,
+      userId: order.userId,
+      payAmount: payStr,
+      status: order.status,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      paidAt: order.paidAt || null,
+      buyerNickname,
+      receiverName: order.receiverName != null ? String(order.receiverName) : '',
+      receiverPhone: order.receiverPhone != null ? String(order.receiverPhone) : '',
+      receiverRegion: order.receiverRegion != null ? String(order.receiverRegion) : '',
+      receiverAddress: order.receiverAddress != null ? String(order.receiverAddress) : '',
+      logisticsNo: order.logisticsNo != null ? String(order.logisticsNo) : '',
+      lines: lines.map((it) => {
+        const q = Number(it.quantity) || 0
+        const p = Number(it.price) || 0
+        const sub = it.subtotal != null ? Number(it.subtotal) : p * q
+        const pid = Number(it.productId) || 0
+        return {
+          productId: it.productId,
+          skuCode: pid > 0 ? `PW-${String(pid).padStart(5, '0')}` : '',
+          title: String(it.title || ''),
+          imageUrl: String(it.imageUrl || ''),
+          quantity: q,
+          unitPrice: p.toFixed(2),
+          subtotal: Number(sub).toFixed(2),
+        }
+      }),
+    })
   },
   merchantOrderTodoBadges: async (merchantId) => {
     const mid = Number(merchantId || 0)
@@ -1273,6 +1516,7 @@ const mockApi = {
       if (order.status !== 'PAID') return fail('当前状态无法发货')
       order.status = 'SHIPPED'
       order.updatedAt = new Date().toISOString()
+      mockNotifyOrderShipped(order)
       return ok(true, '已发货')
     }
     if (next === 'CANCELLED') return fail('商家端不支持取消订单')
@@ -1295,9 +1539,101 @@ const mockApi = {
     if (!isOrderOwnedByUser(order, uid)) return fail('无权限查看该订单', 403)
     return ok({
       ...toOrderSummary(order),
+      paidAt: order.paidAt || null,
+      receiverName: order.receiverName != null ? String(order.receiverName) : '',
+      receiverPhone: order.receiverPhone != null ? String(order.receiverPhone) : '',
+      receiverRegion: order.receiverRegion != null ? String(order.receiverRegion) : '',
+      receiverAddress: order.receiverAddress != null ? String(order.receiverAddress) : '',
+      logisticsNo: order.logisticsNo != null ? String(order.logisticsNo) : '',
       items: order.items || [],
     })
   },
+
+  userListAddresses: async (userId) => {
+    const uid = Number(userId)
+    if (!uid) return fail('请先登录')
+    const list = mockAddressListForUser(uid).slice().sort((a, b) => {
+      if (Number(b.isDefault) !== Number(a.isDefault)) return Number(b.isDefault) - Number(a.isDefault)
+      return Number(b.addressId) - Number(a.addressId)
+    })
+    return ok(list.map((row) => ({ ...row })))
+  },
+
+  userCreateAddress: async (userId, data) => {
+    const uid = Number(userId)
+    if (!uid) return fail('请先登录')
+    const receiverName = String(data?.receiverName ?? '').trim()
+    const receiverDetail = String(data?.receiverDetail ?? '').trim()
+    if (!receiverName || !receiverDetail) return fail('收货人与详细地址不能为空')
+    const wantDefault = Number(data?.isDefault) === 1
+    const list = mockAddressListForUser(uid)
+    if (wantDefault) {
+      for (const x of list) x.isDefault = 0
+    }
+    const row = {
+      addressId: nextMockAddressId(),
+      label: String(data?.label ?? '').trim(),
+      receiverName,
+      receiverPhone: String(data?.receiverPhone ?? '').trim(),
+      receiverRegion: String(data?.receiverRegion ?? '').trim(),
+      receiverDetail,
+      isDefault: wantDefault || list.length === 0 ? 1 : 0,
+    }
+    list.push(row)
+    return ok({ ...row })
+  },
+
+  userUpdateAddress: async (userId, addressId, data) => {
+    const uid = Number(userId)
+    const aid = Number(addressId)
+    if (!uid || !aid) return fail('参数无效')
+    const list = mockAddressListForUser(uid)
+    const idx = list.findIndex((x) => Number(x.addressId) === aid)
+    if (idx < 0) return fail('地址不存在', 404)
+    const receiverName = String(data?.receiverName ?? '').trim()
+    const receiverDetail = String(data?.receiverDetail ?? '').trim()
+    if (!receiverName || !receiverDetail) return fail('收货人与详细地址不能为空')
+    const wantDefault = Number(data?.isDefault) === 1
+    if (wantDefault) {
+      for (const x of list) x.isDefault = 0
+    }
+    list[idx] = {
+      ...list[idx],
+      label: String(data?.label ?? '').trim(),
+      receiverName,
+      receiverPhone: String(data?.receiverPhone ?? '').trim(),
+      receiverRegion: String(data?.receiverRegion ?? '').trim(),
+      receiverDetail,
+      isDefault: wantDefault ? 1 : Number(list[idx].isDefault) === 1 ? 1 : 0,
+    }
+    return ok(true)
+  },
+
+  userDeleteAddress: async (userId, addressId) => {
+    const uid = Number(userId)
+    const aid = Number(addressId)
+    const list = mockAddressListForUser(uid)
+    const idx = list.findIndex((x) => Number(x.addressId) === aid)
+    if (idx < 0) return fail('地址不存在', 404)
+    const wasDef = Number(list[idx].isDefault) === 1
+    list.splice(idx, 1)
+    if (wasDef && list.length) {
+      list[0].isDefault = 1
+    }
+    return ok(true)
+  },
+
+  userSetDefaultAddress: async (userId, addressId) => {
+    const uid = Number(userId)
+    const aid = Number(addressId)
+    const list = mockAddressListForUser(uid)
+    const row = list.find((x) => Number(x.addressId) === aid)
+    if (!row) return fail('地址不存在', 404)
+    for (const x of list) x.isDefault = 0
+    row.isDefault = 1
+    return ok(true)
+  },
+
   userCreateOrderFromCart: async (data) => {
     const userId = Number(data?.userId)
     const merchantId =
@@ -1331,6 +1667,19 @@ const mockApi = {
     }
     const { items, payAmount } = calcOrderItems(prepared)
     const now = new Date().toISOString()
+    const u = (state.users || []).find((x) => Number(x.userId) === userId)
+    const snap = resolveMockReceiverFromOrderPayload(userId, data)
+    if (!snap) return fail('收货地址无效')
+    const aid = Number(data?.addressId || 0)
+    if (!(aid > 0) && (!snap.receiverRegion || !snap.receiverAddress)) {
+      return fail('请选择地址簿或填写配送地区与详细地址')
+    }
+    const receiverName =
+      snap.receiverName ||
+      (u?.nickname && String(u.nickname).trim() ? String(u.nickname).trim() : `用户${userId}`)
+    const receiverPhone = snap.receiverPhone || String(u?.phone || '')
+    const receiverRegion = snap.receiverRegion
+    const receiverAddress = snap.receiverAddress
     const order = {
       orderId: nextId(state.orders, 'orderId'),
       orderNo: genOrderNo(),
@@ -1341,10 +1690,17 @@ const mockApi = {
       items,
       createdAt: now,
       updatedAt: now,
+      receiverName,
+      receiverPhone,
+      receiverRegion,
+      receiverAddress,
+      logisticsNo: '',
+      paidAt: null,
     }
     state.orders.push(order)
     const usedCartIds = new Set(cart.map((c) => c.cartId))
     state.cart = state.cart.filter((x) => !(x.userId === userId && usedCartIds.has(x.cartId)))
+    mockNotifyOrderPendingPay(order)
     return ok({ orderId: order.orderId }, '下单成功')
   },
   userCreateOrderDirect: async (data) => {
@@ -1367,6 +1723,19 @@ const mockApi = {
       },
     ])
     const now = new Date().toISOString()
+    const u = (state.users || []).find((x) => Number(x.userId) === userId)
+    const snap = resolveMockReceiverFromOrderPayload(userId, data)
+    if (!snap) return fail('收货地址无效')
+    const aid = Number(data?.addressId || 0)
+    if (!(aid > 0) && (!snap.receiverRegion || !snap.receiverAddress)) {
+      return fail('请选择地址簿或填写配送地区与详细地址')
+    }
+    const receiverName =
+      snap.receiverName ||
+      (u?.nickname && String(u.nickname).trim() ? String(u.nickname).trim() : `用户${userId}`)
+    const receiverPhone = snap.receiverPhone || String(u?.phone || '')
+    const receiverRegion = snap.receiverRegion
+    const receiverAddress = snap.receiverAddress
     const order = {
       orderId: nextId(state.orders, 'orderId'),
       orderNo: genOrderNo(),
@@ -1377,8 +1746,15 @@ const mockApi = {
       items,
       createdAt: now,
       updatedAt: now,
+      receiverName,
+      receiverPhone,
+      receiverRegion,
+      receiverAddress,
+      logisticsNo: '',
+      paidAt: null,
     }
     state.orders.push(order)
+    mockNotifyOrderPendingPay(order)
     return ok({ orderId: order.orderId }, '下单成功')
   },
   userPayOrder: async (orderId, userId) => {
@@ -1394,6 +1770,7 @@ const mockApi = {
     }
     order.status = 'PAID'
     order.stockDeducted = true
+    order.paidAt = new Date().toISOString()
     order.updatedAt = new Date().toISOString()
     return ok(true, '支付成功')
   },
@@ -1544,16 +1921,93 @@ const mockApi = {
       merchantName: merchant?.shopName || merchant?.username || `商家${merchantId}`,
     })
   },
+  userGetAdminSession: async (data) => {
+    const uid = Number(data?.userId)
+    if (!uid) return fail('请先登录')
+    let session = state.chatSessions.find(
+      (s) =>
+        Number(s.userId) === uid &&
+        s.sessionType === 'USER_TO_ADMIN' &&
+        s.status === 'OPEN',
+    )
+    if (!session) {
+      const now = new Date().toISOString()
+      session = {
+        sessionId: nextId(state.chatSessions, 'sessionId'),
+        userId: uid,
+        merchantId: null,
+        agentAdminId: null,
+        orderId: null,
+        sessionType: 'USER_TO_ADMIN',
+        status: 'OPEN',
+        createdAt: now,
+        updatedAt: now,
+      }
+      state.chatSessions.push(session)
+    }
+    return ok({
+      ...session,
+      merchantName: '平台客服',
+    })
+  },
+  merchantGetAdminSession: async (data) => {
+    const mid = Number(data?.merchantId)
+    if (!mid) return fail('请先登录商家账号')
+    const merchant = state.merchants.find((m) => Number(m.merchantId) === mid)
+    let session = state.chatSessions.find(
+      (s) =>
+        Number(s.merchantId) === mid &&
+        s.sessionType === 'MERCHANT_TO_ADMIN' &&
+        s.status === 'OPEN',
+    )
+    if (!session) {
+      const now = new Date().toISOString()
+      session = {
+        sessionId: nextId(state.chatSessions, 'sessionId'),
+        userId: null,
+        merchantId: mid,
+        agentAdminId: null,
+        orderId: null,
+        sessionType: 'MERCHANT_TO_ADMIN',
+        status: 'OPEN',
+        createdAt: now,
+        updatedAt: now,
+      }
+      state.chatSessions.push(session)
+    }
+    const label =
+      merchant?.shopName || merchant?.username || merchant?.nickname || `商家${mid}`
+    return ok({
+      ...session,
+      merchantName: `平台管理员 · ${label}`,
+    })
+  },
   userChatUnreadBadge: async (userId) => {
     const uid = Number(userId || 0)
     if (!uid) return fail('请先登录')
-    const sessionIds = state.chatSessions
+    const merchantSessionIds = state.chatSessions
       .filter((s) => Number(s.userId) === uid && s.sessionType === 'USER_TO_MERCHANT')
       .map((s) => s.sessionId)
-    const hasUnread = state.chatMessages.some(
-      (m) => sessionIds.includes(m.sessionId) && m.senderType === 'MERCHANT' && Number(m.readStatus) !== 1,
+    const hasMerchantUnread = state.chatMessages.some(
+      (m) =>
+        merchantSessionIds.includes(m.sessionId) &&
+        m.senderType === 'MERCHANT' &&
+        Number(m.readStatus) !== 1,
     )
-    return ok({ hasUnread })
+    const adminSessionIds = state.chatSessions
+      .filter((s) => Number(s.userId) === uid && s.sessionType === 'USER_TO_ADMIN')
+      .map((s) => s.sessionId)
+    const hasAdminUnread = state.chatMessages.some(
+      (m) =>
+        adminSessionIds.includes(m.sessionId) &&
+        m.senderType === 'ADMIN' &&
+        Number(m.readStatus) !== 1,
+    )
+    return ok({
+      hasUnread: hasMerchantUnread || hasAdminUnread,
+      hasUnreadPeer: hasMerchantUnread,
+      hasUnreadPlatform: hasAdminUnread,
+    })
   },
   userChatUnreadMerchants: async (userId) => {
     const uid = Number(userId || 0)
@@ -1577,13 +2031,26 @@ const mockApi = {
     const sessionIds = state.chatSessions
       .filter((s) => Number(s.merchantId) === mid && s.sessionType === 'USER_TO_MERCHANT')
       .map((s) => s.sessionId)
-    const hasUnread = state.chatMessages.some(
+    const hasUserUnread = state.chatMessages.some(
       (m) =>
         sessionIds.includes(m.sessionId) &&
         m.senderType === 'USER' &&
         Number(m.readByMerchant) !== 1,
     )
-    return ok({ hasUnread })
+    const adminSids = state.chatSessions
+      .filter((s) => Number(s.merchantId) === mid && s.sessionType === 'MERCHANT_TO_ADMIN')
+      .map((s) => s.sessionId)
+    const hasAdminUnread = state.chatMessages.some(
+      (m) =>
+        adminSids.includes(m.sessionId) &&
+        m.senderType === 'ADMIN' &&
+        Number(m.readByMerchant) !== 1,
+    )
+    return ok({
+      hasUnread: hasUserUnread || hasAdminUnread,
+      hasUnreadPeer: hasUserUnread,
+      hasUnreadPlatform: hasAdminUnread,
+    })
   },
   userGetSupportMessages: async (sessionId, userId) => {
     const sid = Number(sessionId)
@@ -1591,9 +2058,15 @@ const mockApi = {
     if (!uid) return fail('请先登录')
     const session = state.chatSessions.find((s) => s.sessionId === sid)
     if (!session || Number(session.userId) !== uid) return fail('会话不存在', 404)
-    state.chatMessages.forEach((m) => {
-      if (m.sessionId === sid && m.senderType === 'MERCHANT') m.readStatus = 1
-    })
+    if (session.sessionType === 'USER_TO_ADMIN') {
+      state.chatMessages.forEach((m) => {
+        if (m.sessionId === sid && m.senderType === 'ADMIN') m.readStatus = 1
+      })
+    } else {
+      state.chatMessages.forEach((m) => {
+        if (m.sessionId === sid && m.senderType === 'MERCHANT') m.readStatus = 1
+      })
+    }
     const list = state.chatMessages
       .filter((m) => m.sessionId === sid)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -1618,6 +2091,7 @@ const mockApi = {
       attachmentUrl: null,
       readStatus: 1,
       readByMerchant: 0,
+      isReadByAdmin: session.sessionType === 'USER_TO_ADMIN' ? 0 : 1,
       createdAt: now,
     }
     state.chatMessages.push(msg)
@@ -1685,12 +2159,21 @@ const mockApi = {
     const mid = Number(merchantId || 0)
     if (!mid) return fail('请先登录商家账号')
     const session = state.chatSessions.find((s) => s.sessionId === sid)
-    if (!session || Number(session.merchantId) !== mid || session.sessionType !== 'USER_TO_MERCHANT') {
+    if (!session || Number(session.merchantId) !== mid) {
       return fail('会话不存在', 404)
     }
-    state.chatMessages.forEach((m) => {
-      if (m.sessionId === sid && m.senderType === 'USER') m.readByMerchant = 1
-    })
+    if (session.sessionType !== 'USER_TO_MERCHANT' && session.sessionType !== 'MERCHANT_TO_ADMIN') {
+      return fail('会话不存在', 404)
+    }
+    if (session.sessionType === 'USER_TO_MERCHANT') {
+      state.chatMessages.forEach((m) => {
+        if (m.sessionId === sid && m.senderType === 'USER') m.readByMerchant = 1
+      })
+    } else {
+      state.chatMessages.forEach((m) => {
+        if (m.sessionId === sid && m.senderType === 'ADMIN') m.readByMerchant = 1
+      })
+    }
     const list = state.chatMessages
       .filter((m) => m.sessionId === sid)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -1705,6 +2188,12 @@ const mockApi = {
     if (!content) return fail('消息不能为空')
     const session = state.chatSessions.find((s) => s.sessionId === sessionId)
     if (!session) return fail('会话不存在')
+    if (
+      session.sessionType !== 'USER_TO_MERCHANT' &&
+      session.sessionType !== 'MERCHANT_TO_ADMIN'
+    ) {
+      return fail('会话不存在')
+    }
     const now = new Date().toISOString()
     const msg = {
       messageId: nextId(state.chatMessages, 'messageId'),
@@ -1715,11 +2204,112 @@ const mockApi = {
       attachmentUrl: null,
       readStatus: 0,
       readByMerchant: 1,
+      isReadByAdmin: session.sessionType === 'MERCHANT_TO_ADMIN' ? 0 : 1,
       createdAt: now,
     }
     state.chatMessages.push(msg)
     session.updatedAt = now
     return ok(msg, '发送成功')
+  },
+
+  adminListSupportSessions: async () => {
+    const support = state.chatSessions.filter(
+      (s) => s.sessionType === 'USER_TO_ADMIN' || s.sessionType === 'MERCHANT_TO_ADMIN',
+    )
+    const rows = support.map((s) => {
+      let counterpartyTitle = '—'
+      let counterpartySub = ''
+      if (s.sessionType === 'USER_TO_ADMIN') {
+        const u = state.users.find((x) => Number(x.userId) === Number(s.userId))
+        counterpartyTitle = u?.nickname || `用户${s.userId}`
+        counterpartySub = '用户咨询平台'
+      } else {
+        const m = state.merchants.find((x) => Number(x.merchantId) === Number(s.merchantId))
+        counterpartyTitle = m?.shopName || m?.username || `商家${s.merchantId}`
+        counterpartySub = '商家咨询平台'
+      }
+      const unreadFromCounterparty = state.chatMessages.some(
+        (msg) =>
+          msg.sessionId === s.sessionId &&
+          (msg.senderType === 'USER' || msg.senderType === 'MERCHANT') &&
+          Number(msg.isReadByAdmin ?? 1) !== 1,
+      )
+      return {
+        sessionId: s.sessionId,
+        sessionType: s.sessionType,
+        counterpartyTitle,
+        counterpartySub,
+        updatedAt: s.updatedAt,
+        unreadFromCounterparty,
+      }
+    })
+    rows.sort(
+      (a, b) =>
+        new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
+    )
+    return ok(rows)
+  },
+  adminGetSupportMessages: async (sessionId) => {
+    const sid = Number(sessionId)
+    const session = state.chatSessions.find((s) => s.sessionId === sid)
+    if (
+      !session ||
+      (session.sessionType !== 'USER_TO_ADMIN' && session.sessionType !== 'MERCHANT_TO_ADMIN')
+    ) {
+      return fail('会话不存在', 404)
+    }
+    state.chatMessages.forEach((m) => {
+      if (m.sessionId === sid && (m.senderType === 'USER' || m.senderType === 'MERCHANT')) {
+        m.isReadByAdmin = 1
+      }
+    })
+    const list = state.chatMessages
+      .filter((m) => m.sessionId === sid)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    return ok(list)
+  },
+  adminSendSupportMessage: async (data) => {
+    const sessionId = Number(data?.sessionId)
+    const content = String(data?.content || '').trim()
+    const adminId = 1
+    if (!sessionId) return fail('会话无效')
+    if (!content) return fail('消息不能为空')
+    const session = state.chatSessions.find((s) => s.sessionId === sessionId)
+    if (
+      !session ||
+      (session.sessionType !== 'USER_TO_ADMIN' && session.sessionType !== 'MERCHANT_TO_ADMIN')
+    ) {
+      return fail('会话不存在')
+    }
+    const now = new Date().toISOString()
+    const msg = {
+      messageId: nextId(state.chatMessages, 'messageId'),
+      sessionId,
+      senderType: 'ADMIN',
+      senderId: adminId,
+      content,
+      attachmentUrl: null,
+      readStatus: 0,
+      readByMerchant: 0,
+      isReadByAdmin: 1,
+      createdAt: now,
+    }
+    state.chatMessages.push(msg)
+    session.updatedAt = now
+    return ok(null)
+  },
+  adminSupportUnreadBadge: async () => {
+    const n = state.chatMessages.filter(
+      (m) =>
+        (m.senderType === 'USER' || m.senderType === 'MERCHANT') &&
+        Number(m.isReadByAdmin ?? 1) !== 1 &&
+        state.chatSessions.some(
+          (s) =>
+            s.sessionId === m.sessionId &&
+            (s.sessionType === 'USER_TO_ADMIN' || s.sessionType === 'MERCHANT_TO_ADMIN'),
+        ),
+    ).length
+    return ok({ unread: n })
   },
 
   userGetProfile: async (userId) => {
@@ -1731,6 +2321,7 @@ const mockApi = {
       phone: user.phone,
       email: user.email,
       avatarUrl: user.avatarUrl,
+      petPreference: String(user.petPreference || 'both'),
     })
   },
   userUpdateProfile: async (userId, data) => {
@@ -1748,6 +2339,22 @@ const mockApi = {
     user.phone = phone
     user.email = email
     if (typeof data?.avatarUrl !== 'undefined') user.avatarUrl = String(data.avatarUrl || '')
+    if (typeof data?.petPreference !== 'undefined') {
+      const pref = String(data.petPreference || '').trim().toLowerCase()
+      user.petPreference = ['cat', 'dog', 'both'].includes(pref) ? pref : 'both'
+    }
+    return ok(true, '保存成功')
+  },
+  userGetPetPreference: async (userId) => {
+    const user = state.users.find((u) => u.userId === Number(userId))
+    if (!user) return fail('用户不存在', 404)
+    return ok({ petPreference: String(user.petPreference || 'both') })
+  },
+  userUpdatePetPreference: async (userId, data) => {
+    const user = state.users.find((u) => u.userId === Number(userId))
+    if (!user) return fail('用户不存在', 404)
+    const pref = String(data?.petPreference || '').trim().toLowerCase()
+    user.petPreference = ['cat', 'dog', 'both'].includes(pref) ? pref : 'both'
     return ok(true, '保存成功')
   },
   merchantGetProfile: async (merchantId) => {
@@ -1755,7 +2362,7 @@ const mockApi = {
     if (!merchant) return fail('商家不存在', 404)
     const tw =
       merchant.salesTargetWeekly != null && merchant.salesTargetWeekly !== ''
-        ? String(Number(merchant.salesTargetWeekly).toFixed(2))
+        ? formatYuan(merchant.salesTargetWeekly)
         : ''
     return ok({
       merchantId: merchant.merchantId,
@@ -1777,10 +2384,12 @@ const mockApi = {
     if (!shopName) return fail('店铺名称不能为空')
     if (!contactName) return fail('联系人不能为空')
     if (!phone) return fail('联系电话不能为空')
+    const email = String(data?.email || '').trim()
+    if (email && !isValidEmailFormat(email)) return fail('联系邮箱格式不正确')
     merchant.shopName = shopName
     merchant.contactName = contactName
     merchant.phone = phone
-    merchant.email = String(data?.email || '').trim()
+    merchant.email = email
     if (typeof data?.avatarUrl !== 'undefined') merchant.avatarUrl = String(data.avatarUrl || '')
     if (typeof data?.salesTargetWeekly !== 'undefined') {
       const raw = String(data.salesTargetWeekly ?? '').trim()
@@ -1797,7 +2406,30 @@ const mockApi = {
 }
 
 export const api = {
-  getProducts: async () => (USE_MOCK ? mockApi.getProducts() : getJson('/api/products')),
+  getUserRecommendations: async (userId, topN = 10) =>
+    USE_MOCK
+      ? mockApi.getUserRecommendations(userId, topN)
+      : getJson(`/api/recommendations/user/${encodeURIComponent(userId)}?topN=${encodeURIComponent(topN)}`),
+  /** 上报浏览/点击等行为，供后端在线重排推荐（失败不影响页面）。 */
+  postUserEvent: async (data) => (USE_MOCK ? mockApi.postUserEvent(data) : postJson('/api/user/events', data)),
+  getProducts: async () => {
+    if (USE_MOCK) return mockApi.getProducts()
+    const now = Date.now()
+    if (productsCache.data && now < Number(productsCache.expireAt || 0)) {
+      return { code: 200, message: 'success', data: productsCache.data }
+    }
+    if (productsInFlight) return productsInFlight
+    productsInFlight = getJson('/api/products')
+    const res = await productsInFlight
+    productsInFlight = null
+    if (res.code === 200 && Array.isArray(res.data)) {
+      productsCache = {
+        expireAt: now + PRODUCTS_CACHE_TTL_MS,
+        data: res.data,
+      }
+    }
+    return res
+  },
   getProduct: async (id) => (USE_MOCK ? mockApi.getProduct(id) : getJson(`/api/products/${id}`)),
   getProductsByCategory: async (categoryId) =>
     USE_MOCK ? mockApi.getProductsByCategory(categoryId) : getJson(`/api/products/category/${categoryId}`),
@@ -1863,6 +2495,14 @@ export const api = {
     USE_MOCK ? mockApi.adminUpdateUserStatus(userId, data) : putJson(`/api/admin/users/${userId}/status`, data),
   adminResetUserPassword: async (userId, data) =>
     USE_MOCK ? mockApi.adminResetUserPassword(userId, data) : putJson(`/api/admin/users/${userId}/password`, data),
+  adminResetUserPetPreference: async (userId) =>
+    USE_MOCK
+      ? mockApi.adminResetUserPetPreference(userId)
+      : putJson(`/api/admin/users/${userId}/pet-preference/reset`, {}),
+  adminResetAllUserPetPreference: async () =>
+    USE_MOCK
+      ? mockApi.adminResetAllUserPetPreference()
+      : putJson('/api/admin/users/pet-preference/reset-all', {}),
   adminListMerchants: async () => (USE_MOCK ? mockApi.adminListMerchants() : getJson('/api/admin/merchants')),
   adminUpdateMerchantStatus: async (merchantId, data) =>
     USE_MOCK
@@ -1874,11 +2514,19 @@ export const api = {
       : putJson(`/api/admin/merchants/${merchantId}/password`, data),
   adminUpdateOrderStatus: async (orderId, data) =>
     USE_MOCK ? mockApi.adminUpdateOrderStatus(orderId, data) : putJson(`/api/admin/orders/${orderId}/status`, data),
+  adminUrgeOrderShipment: async (orderId) =>
+    USE_MOCK ? mockApi.adminUrgeOrderShipment(orderId) : postJson(`/api/admin/orders/${orderId}/urge-shipment`, {}),
   merchantGetOrders: async (merchantId, status = '') => {
     if (USE_MOCK) return mockApi.merchantGetOrders(merchantId, status)
     const q = status ? `&status=${encodeURIComponent(status)}` : ''
     return getJson(`/api/merchant/orders?merchantId=${encodeURIComponent(merchantId)}${q}`)
   },
+  merchantGetOrderDetail: async (merchantId, orderId) =>
+    USE_MOCK
+      ? mockApi.merchantGetOrderDetail(merchantId, orderId)
+      : getJson(
+          `/api/merchant/orders/${encodeURIComponent(orderId)}?merchantId=${encodeURIComponent(merchantId)}`,
+        ),
   merchantOrderTodoBadges: async (merchantId) =>
     USE_MOCK
       ? mockApi.merchantOrderTodoBadges(merchantId)
@@ -1943,11 +2591,103 @@ export const api = {
         ),
   merchantSendSupportMessage: async (data) =>
     USE_MOCK ? mockApi.merchantSendSupportMessage(data) : postJson('/api/merchant/chat/messages', data),
+  userGetAdminSession: async (data) =>
+    USE_MOCK ? mockApi.userGetAdminSession(data) : postJson('/api/chat/session/admin', data),
+  merchantGetAdminSession: async (data) =>
+    USE_MOCK ? mockApi.merchantGetAdminSession(data) : postJson('/api/merchant/chat/session/admin', data),
+  adminListSupportSessions: async () =>
+    USE_MOCK ? mockApi.adminListSupportSessions() : getJson('/api/admin/support/sessions'),
+  adminGetSupportMessages: async (sessionId) =>
+    USE_MOCK
+      ? mockApi.adminGetSupportMessages(sessionId)
+      : getJson(`/api/admin/support/sessions/${encodeURIComponent(sessionId)}/messages`),
+  adminSendSupportMessage: async (data) =>
+    USE_MOCK
+      ? mockApi.adminSendSupportMessage(data)
+      : postJson('/api/admin/support/messages', { sessionId: data?.sessionId, content: data?.content }),
+  adminSupportUnreadBadge: async () =>
+    USE_MOCK ? mockApi.adminSupportUnreadBadge() : getJson('/api/admin/support/unread-badge'),
   userGetProfile: async (userId) => (USE_MOCK ? mockApi.userGetProfile(userId) : getJson(`/api/users/${userId}/profile`)),
   userUpdateProfile: async (userId, data) =>
     USE_MOCK ? mockApi.userUpdateProfile(userId, data) : putJson(`/api/users/${userId}/profile`, data),
+  userGetPetPreference: async (userId) =>
+    USE_MOCK
+      ? mockApi.userGetPetPreference(userId)
+      : getJson(`/api/users/${userId}/pet-preference`),
+  userUpdatePetPreference: async (userId, data) =>
+    USE_MOCK
+      ? mockApi.userUpdatePetPreference(userId, data)
+      : putJson(`/api/users/${userId}/pet-preference`, data),
   merchantGetProfile: async (merchantId) =>
     USE_MOCK ? mockApi.merchantGetProfile(merchantId) : getJson(`/api/merchant/profile/${merchantId}`),
   merchantUpdateProfile: async (merchantId, data) =>
     USE_MOCK ? mockApi.merchantUpdateProfile(merchantId, data) : putJson(`/api/merchant/profile/${merchantId}`, data),
+
+  userListAddresses: async (userId) =>
+    USE_MOCK ? mockApi.userListAddresses(userId) : getJson(`/api/users/${encodeURIComponent(userId)}/addresses`),
+  userCreateAddress: async (userId, data) =>
+    USE_MOCK ? mockApi.userCreateAddress(userId, data) : postJson(`/api/users/${encodeURIComponent(userId)}/addresses`, data),
+  userUpdateAddress: async (userId, addressId, data) =>
+    USE_MOCK
+      ? mockApi.userUpdateAddress(userId, addressId, data)
+      : putJson(`/api/users/${encodeURIComponent(userId)}/addresses/${encodeURIComponent(addressId)}`, data),
+  userDeleteAddress: async (userId, addressId) =>
+    USE_MOCK
+      ? mockApi.userDeleteAddress(userId, addressId)
+      : deleteJson(`/api/users/${encodeURIComponent(userId)}/addresses/${encodeURIComponent(addressId)}`),
+  userSetDefaultAddress: async (userId, addressId) =>
+    USE_MOCK
+      ? mockApi.userSetDefaultAddress(userId, addressId)
+      : putJson(`/api/users/${encodeURIComponent(userId)}/addresses/${encodeURIComponent(addressId)}/default`, {}),
+  userGetFrequentProducts: async (userId, limit = 10) =>
+    USE_MOCK
+      ? Promise.resolve({ code: 200, data: [] })
+      : getJson(`/api/users/${encodeURIComponent(userId)}/frequent-products?limit=${encodeURIComponent(limit)}`),
+  /** 主动追问推荐：首次 body 传 {}；后续传 sessionId + userMessage */
+  proactiveRecommendTurn: async (userId, body) =>
+    USE_MOCK
+      ? Promise.resolve({ code: 200, data: { sessionId: null, assistantMessage: '', candidateProducts: [], done: false } })
+      : postJson(`/api/recommendations/proactive/user/${encodeURIComponent(userId)}/turn`, body ?? {}),
+  /** 恢复最近一次多轮导购会话 */
+  proactiveLatestSession: async (userId) =>
+    USE_MOCK
+      ? Promise.resolve({ code: 200, data: { sessionId: null, messages: [], candidateProducts: [] } })
+      : getJson(`/api/recommendations/proactive/user/${encodeURIComponent(userId)}/latest-session`),
+  proactiveSessionSummaries: async (userId, limit = 5, includeSessionId) => {
+    if (USE_MOCK) return Promise.resolve({ code: 200, data: [] })
+    let url = `/api/recommendations/proactive/user/${encodeURIComponent(userId)}/sessions?limit=${encodeURIComponent(limit)}`
+    if (includeSessionId != null && Number(includeSessionId) > 0) {
+      url += `&includeSessionId=${encodeURIComponent(includeSessionId)}`
+    }
+    return getJson(url)
+  },
+  proactiveSessionRestoreById: async (userId, sessionId) =>
+    USE_MOCK
+      ? Promise.resolve({ code: 200, data: { sessionId: null, messages: [], candidateProducts: [] } })
+      : getJson(
+          `/api/recommendations/proactive/user/${encodeURIComponent(userId)}/session/${encodeURIComponent(sessionId)}`
+        ),
+  /** 口语问荐：AI 解析槽位 + 站内推荐模型排序后过滤 */
+  nlRecommendQuery: async (userId, body) =>
+    USE_MOCK
+      ? Promise.resolve({
+          code: 200,
+          data: {
+            interpretation: {},
+            candidateProducts: [],
+            replySource: 'HEURISTIC',
+            rankingBackend: 'OFFLINE_TABLE',
+          },
+        })
+      : postJson(`/api/recommendations/nl/user/${encodeURIComponent(userId)}/query`, body ?? {}),
+  /** 智能导购：评论 BERT 分析 + XGB 融合重排（依赖后端 BERT 服务与库内评论） */
+  aiGuideCommentRerank: async (userId, body) =>
+    USE_MOCK
+      ? Promise.resolve({ code: 200, data: [] })
+      : postJson(`/api/recommendations/ai-guide/user/${encodeURIComponent(userId)}/comment-rerank`, body ?? {}),
+
+  adminAuditLogs: async (page = 1, pageSize = 20) =>
+    USE_MOCK
+      ? Promise.resolve({ code: 200, data: { total: 0, page: 1, pageSize: 20, records: [] } })
+      : getJson(`/api/admin/audit-logs?page=${encodeURIComponent(page)}&pageSize=${encodeURIComponent(pageSize)}`),
 }
